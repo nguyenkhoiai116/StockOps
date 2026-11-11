@@ -1,8 +1,8 @@
 /* ----- Khung chat nổi ở góc phải dưới ----- */
-.chat-fab { position: fixed; right: 22px; bottom: 22px; z-index: 900; width: 56px; height: 56px; border: 0;
-            border-radius: 50%; background: var(--bg); box-shadow: var(--sh-out); font-size: 1.5rem; cursor: pointer; }
+.chat-fab { position: fixed; right: 22px; bottom: 22px; z-index: 900; padding: 0; border: 0; background: none;
+            box-shadow: none; cursor: pointer; line-height: 0; }
 .chat-fab:hover { transform: translateY(-2px); }
-.chat-fab img { width: 36px; height: 36px; object-fit: contain; display: block; margin: auto; }
+.chat-fab img { width: 63px; height: 63px; object-fit: contain; display: block; }
 .chat-fab[hidden] { display: none; }
 
 .chat-box { position: fixed; right: 22px; bottom: 22px; z-index: 900; width: min(340px, calc(100vw - 32px));

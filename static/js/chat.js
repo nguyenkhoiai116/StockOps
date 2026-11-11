@@ -2,7 +2,7 @@
 // Hiện tại chỉ có giao diện. Để nối Claude API sau này, chỉ cần sửa hàm `botReply` bên dưới.
 import { esc } from "./core.js";
 
-const WELCOME = "Xin chào! Tôi là trợ lý Ceer. Bạn cần hỏi gì?";
+const WELCOME = "Xin chào! Tôi là trợ lý Kvis. Bạn cần hỏi gì?";
 
 // Điểm nối API: nhận câu hỏi của người dùng, trả về câu trả lời.
 // TODO: thay phần giả lập bằng lời gọi backend, ví dụ:
@@ -20,7 +20,7 @@ export function mountChat() {
     <button class="chat-fab" id="chatFab" title="Trợ lý chat" aria-label="Mở chat"><img src="/icons/Chatbot.png" alt=""></button>
     <section class="chat-box" id="chatBox" hidden>
       <header class="chat-head">
-        <b>Trợ lý WMS</b>
+        <b>Trợ lý Kvis</b>
         <button class="chat-close" id="chatClose" aria-label="Đóng">✕</button>
       </header>
       <div class="chat-log" id="chatLog"></div>
