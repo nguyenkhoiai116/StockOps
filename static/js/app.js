@@ -9,6 +9,7 @@ import { page as picking } from "./features/picking.js";
 import { page as shipping } from "./features/shipping.js";
 import { page as analytics } from "./features/analytics.js";
 import { showLogin } from "./features/auth.js";
+import { mountChat } from "./chat.js";
 
 // Danh sách chức năng. Thêm feature mới: import ở trên rồi thêm vào đây.
 const PAGES = [dashboard, products, inbound, layout, inventory, picking, shipping, analytics];
@@ -23,3 +24,4 @@ async function home() {
 // ---------- Khởi động ----------
 document.getElementById("loginBtn").onclick = showLogin;
 startRouter(PAGES, home);    // bắt đầu điều hướng
+mountChat();                 // khung chat góc phải dưới (xem chat.js)
