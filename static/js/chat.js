@@ -46,14 +46,26 @@ export function mountChat() {
     return div;
   };
 
-  const setOpen = (open) => {
+  const setOpen = (open, focus = true) => {
     box.hidden = !open;
     fab.hidden = open;
-    if (open) input.focus();
+    if (open && focus) input.focus();
   };
 
-  fab.onclick = () => setOpen(true);
+  // Bong bóng lời thoại kiểu truyện tranh: hiện cạnh nút 5 giây khi mở web, rồi tự ẩn.
+  // Bấm vào bong bóng hoặc nút thì mở khung chat ngay.
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble";
+  bubble.textContent = WELCOME;
+  root.appendChild(bubble);
+
+  const hideBubble = () => { bubble.hidden = true; };
+  bubble.onclick = () => { hideBubble(); setOpen(true); };
+
+  fab.onclick = () => { hideBubble(); setOpen(true); };
   root.querySelector("#chatClose").onclick = () => setOpen(false);
+
+  setTimeout(hideBubble, 5000);
 
   form.onsubmit = async (e) => {
     e.preventDefault();

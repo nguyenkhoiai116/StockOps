@@ -1,1 +1,6 @@
-.venv
+.venv/
+__pycache__/
+*.pyc
+wms.db
+static/uploads/*
+!static/uploads/.gitkeep
