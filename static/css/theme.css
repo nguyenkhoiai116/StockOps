@@ -1,0 +1,31 @@
+/* ===== THEME: màu sắc + hiệu ứng Neumorphism (phong cách nổi mềm) =====
+   Neumorphism: nền và thẻ CÙNG một màu, tạo khối bằng 2 bóng đổ
+   (bóng sáng góc trên-trái + bóng tối góc dưới-phải). Đổi màu ở đây là cả web đổi theo. */
+:root {
+  /* --- Màu chủ đạo: XANH DƯƠNG --- */
+  --primary: #2f62d6;        /* xanh dương chính */
+  --primary-d: #234aa8;      /* xanh đậm hơn (hover) */
+  --bg: #e4ebf5;             /* nền xanh-xám mềm (màu gốc của Neumorphism) */
+
+  /* Chữ */
+  --text: #2a3350;           /* chữ chính (xanh than đậm) */
+  --muted: #6b7691;          /* chữ phụ, mờ */
+
+  /* Màu trạng thái */
+  --ok: #1f9d6b; --warn: #c9881a; --bad: #d64545; --info: #2f62d6;
+
+  /* --- Bóng đổ Neumorphism --- */
+  --light: #ffffff;          /* bóng sáng */
+  --dark: #b9c6dd;           /* bóng tối (xanh-xám) */
+  /* Khối nổi lên (thẻ, nút, ô chức năng) */
+  --sh-out: 6px 6px 14px var(--dark), -6px -6px 14px var(--light);
+  /* Khối nổi nhỏ (nút, tag) */
+  --sh-sm: 4px 4px 9px var(--dark), -4px -4px 9px var(--light);
+  /* Khối lõm vào (ô nhập, thanh tiến độ, menu đang chọn) */
+  --sh-in: inset 4px 4px 9px var(--dark), inset -4px -4px 9px var(--light);
+  --sh-in-sm: inset 2px 2px 5px var(--dark), inset -3px -3px 6px var(--light);
+
+  --r: 16px;                 /* bo góc chuẩn */
+  --r-sm: 11px;              /* bo góc nhỏ */
+  --fs: 16px;                /* cỡ chữ gốc (đã tăng so với bản cũ 15px) */
+}

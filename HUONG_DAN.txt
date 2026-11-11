@@ -1,0 +1,44 @@
+HỆ THỐNG QUẢN LÝ KHO FMCG (WMS)
+
+=== CÁCH CHẠY ===
+1. Cài Python từ python.org (Windows: nhớ tick "Add Python to PATH").
+2. Mở terminal trong thư mục này, gõ:
+       pip install flask
+       python app.py
+3. Mở trình duyệt: http://localhost:5000
+   Trên điện thoại cùng Wi-Fi: http://<địa chỉ IP máy tính>:5000
+Tắt server: bấm Ctrl+C trong terminal.
+
+Làm lại dữ liệu mẫu từ đầu: tắt server, xóa file wms.db, chạy lại.
+
+=== CẤU TRÚC THƯ MỤC (đã tách theo chức năng để dễ sửa) ===
+app.py                 Khởi động server (chạy file này)
+requirements.txt       Thư viện cần cài (flask)
+wms/                   TOÀN BỘ BACKEND
+  __init__.py          Tạo app, gắn các chức năng
+  db.py                Tiện ích database dùng chung
+  core.py              Nghiệp vụ lõi: FEFO, xuất kho, cảnh báo, KPI
+  seed.py              Tạo bảng + dữ liệu mẫu
+  features/            MỖI CHỨC NĂNG 1 FILE
+    dashboard.py   products.py   inbound.py    layout.py
+    inventory.py   picking.py    shipping.py   analytics.py
+    auth.py
+static/                TOÀN BỘ GIAO DIỆN
+  index.html           Khung trang
+  css/                 theme.css (màu+hiệu ứng) base.css (khung) components.css (chi tiết)
+  js/
+    core.js            Công cụ dùng chung (gọi API, hộp thoại, điều hướng...)
+    app.js             Khởi động + trang chính
+    features/          MỖI CHỨC NĂNG 1 FILE (trùng tên với bên backend)
+  icons/               Bộ icon SVG tự vẽ
+
+=== MUỐN SỬA GÌ THÌ VÀO ĐÂU ===
+- Đổi màu / hiệu ứng:        static/css/theme.css
+- Sửa 1 chức năng (giao diện): static/js/features/<tên>.js
+- Sửa 1 chức năng (nghiệp vụ): wms/features/<tên>.py
+- Đổi dữ liệu mẫu:            wms/seed.py (rồi xóa wms.db, chạy lại)
+- Đổi icon:                  thay file trong static/icons/
+
+=== THÊM 1 CHỨC NĂNG MỚI ===
+1. Tạo wms/features/ten_moi.py (có biến bp = Blueprint)  -> thêm vào FEATURES trong wms/__init__.py
+2. Tạo static/js/features/ten_moi.js (export page = {...}) -> import vào static/js/app.js

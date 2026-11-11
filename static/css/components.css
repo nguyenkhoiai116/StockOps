@@ -1,0 +1,109 @@
+/* ===== COMPONENTS: nút, thẻ, bảng, hộp thoại, biểu đồ... (đều theo Neumorphism) ===== */
+
+/* ----- Nút ----- */
+.btn {
+  min-height: 44px; padding: 10px 18px; border: 0; border-radius: var(--r-sm); cursor: pointer;
+  font: inherit; font-weight: 700; font-size: .96rem; color: #fff; background: var(--primary);
+  box-shadow: var(--sh-sm); transition: box-shadow .15s, filter .15s; display: inline-flex; align-items: center; gap: 8px;
+}
+.btn:hover { filter: brightness(1.07); }
+.btn:active { box-shadow: var(--sh-in-sm); }        /* bấm vào: lõm xuống như nút thật */
+.btn.ghost { background: var(--bg); color: var(--text); }   /* nút phụ: cùng màu nền */
+.btn.red { background: var(--bad); }
+.btn.sm { min-height: 36px; padding: 6px 12px; font-size: .88rem; }
+a.btn { text-decoration: none; }
+
+/* ----- Thẻ (khối nổi) ----- */
+.card { background: var(--bg); border-radius: var(--r); padding: 20px; box-shadow: var(--sh-out); margin-bottom: 18px; }
+.grid .card, .cols .card, .cols2 .card, .cols3 .card { margin: 0; }
+.kpi .lb { color: var(--muted); font-size: .92rem; }
+.kpi .val { font-size: 1.6rem; font-weight: 800; margin: 6px 0 3px; }
+.kpi .ht { color: var(--muted); font-size: .82rem; }
+
+/* ----- Ô nhập liệu (khối lõm) ----- */
+input, select {
+  min-height: 44px; padding: 10px 14px; border: 0; border-radius: var(--r-sm); font: inherit; font-size: 1rem;
+  color: var(--text); background: var(--bg); box-shadow: var(--sh-in); max-width: 100%;
+}
+input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* ----- Bảng ----- */
+.scroll { overflow-x: auto; border-radius: var(--r-sm); }
+table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+th { text-align: left; color: var(--muted); font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; }
+th, td { padding: 12px 10px; border-bottom: 1px solid rgba(145,160,190,.2); vertical-align: middle; }
+td.r, th.r { text-align: right; }
+td small { color: var(--muted); display: block; font-size: .82rem; }
+tbody tr:last-child td { border-bottom: 0; }
+
+/* ----- Nhãn trạng thái (tag) ----- */
+.tag { display: inline-block; padding: 3px 12px; border-radius: 99px; font-size: .8rem; font-weight: 700; white-space: nowrap;
+       background: var(--bg); box-shadow: var(--sh-sm); color: var(--muted); }
+.tag.ok { color: var(--ok); } .tag.warn { color: var(--warn); } .tag.bad { color: var(--bad); } .tag.info { color: var(--info); }
+
+/* ----- Ô chức năng ở trang chính ----- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 20px; }
+.tile { position: relative; display: block; background: var(--bg); border-radius: var(--r); padding: 24px 18px;
+        text-decoration: none; color: var(--text); box-shadow: var(--sh-out); transition: transform .15s, box-shadow .15s; }
+.tile:hover { transform: translateY(-3px); }
+.tile:active { box-shadow: var(--sh-in); }
+.tile .iconwrap { width: 64px; height: 64px; display: grid; place-items: center; border-radius: var(--r-sm);
+                  box-shadow: var(--sh-in-sm); margin-bottom: 14px; }
+.tile .iconwrap img { width: 36px; height: 36px; object-fit: contain; }
+.tile b { display: block; font-size: 1.12rem; }
+.tile small { color: var(--muted); }
+
+/* ----- Biểu đồ cột dọc ----- */
+.chart { display: flex; align-items: flex-end; justify-content: space-around; height: 210px; padding-top: 8px; }
+.chart .col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.chart .bars { display: flex; align-items: flex-end; gap: 4px; height: 88%; }
+.chart .bar { width: clamp(9px, 2.2vw, 22px); border-radius: 6px 6px 0 0; min-height: 3px; }
+.inb { background: var(--primary); } .out { background: #8aa0d8; }
+.chart .day { font-size: .78rem; color: var(--muted); margin-top: 6px; }
+.legend { font-size: .85rem; color: var(--muted); margin-top: 10px; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin: 0 5px 0 12px; vertical-align: middle; }
+
+/* ----- Thanh ngang (sức chứa, phân tích) ----- */
+.hb { margin-bottom: 15px; font-size: .95rem; }
+.hb .t { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.track { height: 12px; background: var(--bg); border-radius: 99px; box-shadow: var(--sh-in-sm); overflow: hidden; padding: 2px; }
+.fill { height: 100%; border-radius: 99px; background: var(--primary); }
+.fill.warn { background: var(--warn); } .fill.bad { background: var(--bad); }
+
+/* ----- Danh sách (cảnh báo, hoạt động, gợi ý AI) ----- */
+ul.list { list-style: none; margin: 0; padding: 0; }
+ul.list li { padding: 11px 0; border-bottom: 1px solid rgba(145,160,190,.2); font-size: .95rem; }
+ul.list li:last-child { border: 0; }
+ul.list small { display: block; color: var(--muted); font-size: .82rem; }
+.ai .tip { background: var(--bg); border-radius: var(--r-sm); padding: 12px 14px; margin-bottom: 10px; box-shadow: var(--sh-sm); }
+.tip b { color: var(--primary); font-size: .95rem; }
+.tip p { margin: 4px 0 0; font-size: .86rem; color: var(--muted); }
+
+/* ----- Sơ đồ kho: mỗi khu 1 lưới ô ----- */
+.bins { display: grid; grid-template-columns: repeat(6, 1fr); gap: 9px; }
+.bin { aspect-ratio: 1; min-height: 46px; border: 0; border-radius: var(--r-sm); background: var(--bg); color: var(--muted);
+       box-shadow: var(--sh-in-sm); font: inherit; font-size: .72rem; cursor: default; padding: 2px; }
+.bin.has { box-shadow: var(--sh-sm); cursor: pointer; font-weight: 800; }
+.bin.ok { color: var(--ok); } .bin.warn { color: var(--warn); } .bin.bad { color: var(--bad); }
+.bin.has:hover { transform: scale(1.06); }
+
+/* ----- Hộp thoại (modal) ----- */
+.modal { display: none; position: fixed; inset: 0; z-index: 20; background: rgba(42,51,80,.4); align-items: center; justify-content: center; padding: 16px; }
+.modal.show { display: flex; }
+.box { background: var(--bg); border-radius: var(--r); padding: 24px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; box-shadow: var(--sh-out); }
+.box label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: 14px; }
+.box label input, .box label select { display: block; width: 100%; margin-top: 6px; }
+.box .acts { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.box p { margin: 8px 0; }
+
+/* ----- Thông báo nhỏ (toast) ----- */
+.toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 90px); opacity: 0; z-index: 30; max-width: 90vw;
+         background: var(--primary); color: #fff; padding: 12px 20px; border-radius: var(--r-sm); font-size: .95rem; font-weight: 600;
+         box-shadow: var(--sh-out); transition: .28s; pointer-events: none; }
+.toast.show { transform: translate(-50%, 0); opacity: 1; }
+.toast.err { background: var(--bad); }
+
+.empty { text-align: center; color: var(--muted); padding: 36px 10px; }
+.skel { height: 130px; border-radius: var(--r); box-shadow: var(--sh-out); margin-bottom: 16px; opacity: .6;
+        animation: pulse 1.3s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
