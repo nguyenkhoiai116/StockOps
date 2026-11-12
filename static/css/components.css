@@ -53,13 +53,57 @@ tbody tr:last-child td { border-bottom: 0; }
 .tile b { display: block; font-size: 1.12rem; }
 .tile small { color: var(--muted); }
 
-/* ----- Biểu đồ cột dọc ----- */
-.chart { display: flex; align-items: flex-end; justify-content: space-around; height: 210px; padding-top: 8px; }
-.chart .col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+/* ----- Tiêu đề thẻ có nút bên phải (vd nút đổi kiểu biểu đồ) ----- */
+.card-head { margin-bottom: 10px; }
+.card-head h2 { margin: 0; }
+
+/* ----- Biểu đồ cột đôi ----- */
+.chart { display: flex; align-items: flex-end; justify-content: space-around; height: 230px; padding-top: 22px; }
+.chart .col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;
+              flex: 1; padding: 0 2px; border-radius: var(--r-sm); transition: opacity .2s, box-shadow .2s; }
 .chart .bars { display: flex; align-items: flex-end; gap: 4px; height: 88%; }
-.chart .bar { width: clamp(9px, 2.2vw, 22px); border-radius: 6px 6px 0 0; min-height: 3px; }
+.chart .bar { position: relative; width: clamp(9px, 2.2vw, 22px); border-radius: 6px 6px 0 0; min-height: 3px;
+              transform-origin: bottom; animation: bar-grow .6s ease-out; transition: filter .2s, transform .2s; }
 .inb { background: var(--primary); } .out { background: #8aa0d8; }
+/* số liệu nằm ngay trên đầu cột */
+.chart .bar .v { position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -3px); font-size: .7rem; font-weight: 700;
+                 color: var(--muted); white-space: nowrap; transition: transform .2s, color .2s; }
 .chart .day { font-size: .78rem; color: var(--muted); margin-top: 6px; }
+/* rê chuột vào 1 ngày: các ngày khác mờ đi, cột được chọn nổi lên và số phóng to */
+.chart:hover .col:not(:hover) { opacity: .4; }
+.chart .col:hover { box-shadow: var(--sh-in-sm); }
+.chart .col:hover .bar { filter: brightness(1.12); transform: scaleY(1.03); }
+.chart .col:hover .bar .v { color: var(--text); transform: translate(-50%, -5px) scale(1.2); }
+.chart .col:hover .day { color: var(--text); font-weight: 700; }
+@keyframes bar-grow { from { transform: scaleY(0); } }
+
+/* ----- Biểu đồ đường (SVG) ----- */
+.chart-line { display: block; width: 100%; height: auto; overflow: visible; }
+.chart-line .axis { stroke: rgba(145,160,190,.45); stroke-width: 1; }
+.chart-line .area { fill: var(--primary); opacity: .08; }
+.chart-line .ln { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+                  stroke-dasharray: 1; animation: line-draw .9s ease-out; }
+.chart-line .ln.inb { stroke: var(--primary); } .chart-line .ln.out { stroke: #8aa0d8; }
+.chart-line .hit { fill: transparent; }
+.chart-line .guide { stroke: var(--muted); stroke-dasharray: 4 4; opacity: 0; transition: opacity .2s; }
+.chart-line .dot { stroke: var(--bg); stroke-width: 2; transform-box: fill-box; transform-origin: center; transition: transform .2s; }
+.chart-line .dot.inb { fill: var(--primary); } .chart-line .dot.out { fill: #8aa0d8; }
+.chart-line text { text-anchor: middle; font-family: inherit; transition: opacity .2s, font-size .2s; }
+.chart-line .v { font-size: 12px; font-weight: 700; fill: var(--muted); }
+.chart-line .day { font-size: 12px; fill: var(--muted); }
+/* rê chuột vào 1 ngày: hiện đường dóng, điểm phóng to, nhãn các ngày khác mờ đi */
+.chart-line:hover .pt:not(:hover) .v { opacity: .35; }
+.chart-line .pt:hover .guide { opacity: .6; }
+.chart-line .pt:hover .dot { transform: scale(1.6); }
+.chart-line .pt:hover .v { font-size: 14px; fill: var(--text); }
+.chart-line .pt:hover .day { fill: var(--text); font-weight: 700; }
+@keyframes line-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+@media (max-width: 480px) {
+  /* màn hình nhỏ cột hẹp, chỉ hiện số khi chạm vào ngày đó để không bị đè chữ */
+  .chart .bar .v { opacity: 0; }
+  .chart .col:hover .bar .v { opacity: 1; }
+}
 .legend { font-size: .85rem; color: var(--muted); margin-top: 10px; }
 .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin: 0 5px 0 12px; vertical-align: middle; }
 

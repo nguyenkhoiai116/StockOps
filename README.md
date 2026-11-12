@@ -11,7 +11,7 @@ Tắt server: bấm Ctrl+C trong terminal.
 
 Làm lại dữ liệu mẫu từ đầu: tắt server, xóa file wms.db, chạy lại.
 
-=== CẤU TRÚC THƯ MỤC (đã tách theo chức năng để dễ sửa) ===
+=== CẤU TRÚC THƯ MỤC ===
 app.py                 Khởi động server (chạy file này)
 requirements.txt       Thư viện cần cài (flask)
 wms/                   TOÀN BỘ BACKEND
