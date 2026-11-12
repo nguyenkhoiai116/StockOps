@@ -9,6 +9,8 @@ bp = Blueprint("analytics", __name__)
 
 @bp.get("/api/analytics")
 def api_ana():
+    """Số liệu trang Phân tích: KPI, giá trị tồn theo nhóm hàng, tồn theo SKU,
+    số đơn theo trạng thái và % lấp đầy từng khu."""
     con = db()
     out = {
         "kpi": get_kpis(con),

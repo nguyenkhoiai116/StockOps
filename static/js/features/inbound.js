@@ -1,8 +1,9 @@
 // Feature: Nhập hàng - PO và nhận hàng theo lô.
 import { api, table, form, dmy, num, esc } from "../core.js";
 
-let pos = [];
+let pos = []; // giữ danh sách PO để nút "Nhận hàng" lấy lại thông tin
 
+// Vẽ bảng PO: trạng thái chờ nhận / đã nhận, nút nhận hàng cho PO đang chờ
 async function render() {
   pos = await api("/pos");
   const body = pos.map((o) => `<tr><td><b>${o.po_no}</b></td><td>${esc(o.sku)} ${esc(o.name)}<small>${esc(o.supplier)}</small></td>
@@ -14,6 +15,7 @@ async function render() {
     <div class="card">${table(["PO", "Sản phẩm", "SL đặt*", "Ngày đến", "Trạng thái", ""], body)}</div>`;
 }
 
+// Mở form tạo PO mới (chọn sản phẩm, số lượng, ngày dự kiến đến)
 async function poAdd() {
   const products = await api("/products");
   form("Tạo đơn mua hàng (PO)", [
@@ -21,6 +23,8 @@ async function poAdd() {
     { k: "qty", label: "Số lượng đặt (thùng)", type: "number", val: 100 }, { k: "eta", label: "Ngày dự kiến đến", type: "date", opt: 1 },
   ], (v) => api("/pos", "POST", v));
 }
+
+// Mở form nhận hàng cho 1 PO: nhập số lô, hạn dùng, số lượng đạt và số lượng hỏng
 function poRecv(id) {
   const o = pos.find((x) => x.id === id);
   form("Nhận hàng " + o.po_no, [

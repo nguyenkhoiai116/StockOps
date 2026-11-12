@@ -9,6 +9,7 @@ bp = Blueprint("inbound", __name__)
 
 @bp.get("/api/pos")
 def api_pos():
+    """Danh sách PO kèm thông tin sản phẩm; PO đang chờ nhận xếp lên trước."""
     con = db()
     out = rows(con, """SELECT o.*, p.sku, p.name, p.supplier, p.storage FROM pos o
                        JOIN products p ON p.id=o.product_id ORDER BY o.status DESC, o.id DESC""")
@@ -18,6 +19,7 @@ def api_pos():
 
 @bp.post("/api/pos")
 def api_po_add():
+    """Tạo PO mới, tự đánh số PO-xxx; ngày đến mặc định là ngày mai."""
     d = request.get_json()
     qty = int(d.get("qty") or 0)
     if qty <= 0:

@@ -1,8 +1,9 @@
 // Feature: Tồn kho - theo lô, điều chỉnh, lịch sử, xuất CSV.
 import { api, table, form, expTag, dmy, num, esc } from "../core.js";
 
-let bs = [];
+let bs = []; // giữ danh sách lô để nút "Điều chỉnh" lấy lại thông tin
 
+// Vẽ bảng tồn kho theo lô (thực có, đã giữ, khả dụng) và lịch sử giao dịch gần nhất
 async function render() {
   const d = await api("/inventory");
   bs = d.batches;
@@ -19,6 +20,7 @@ async function render() {
     <div class="card"><h2>Lịch sử giao dịch kho</h2>${table(["Thời gian", "Loại", "SKU", "Lô", "SL*", "Ghi chú"], hist)}</div>`;
 }
 
+// Mở form điều chỉnh số lượng của 1 lô (số âm để giảm) kèm lý do
 function invAdj(id) {
   const b = bs.find((x) => x.id === id);
   form(`Điều chỉnh lô ${b.batch_no} (đang có ${b.qty})`, [

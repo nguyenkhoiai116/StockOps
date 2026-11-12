@@ -1,6 +1,7 @@
 // Feature: Phân tích - KPI và báo cáo.
 import { api, hbar, kpi, capCls, SO, vnd, num } from "../core.js";
 
+// Vẽ trang Phân tích: 4 thẻ KPI và các biểu đồ thanh ngang theo nhóm hàng, SKU, trạng thái đơn, khu kho
 async function render() {
   const d = await api("/analytics"), k = d.kpi;
   // vẽ danh sách thanh ngang, dài theo tỉ lệ với giá trị lớn nhất

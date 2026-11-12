@@ -2,7 +2,7 @@
    Neumorphism: nền và thẻ CÙNG một màu, tạo khối bằng 2 bóng đổ
    (bóng sáng góc trên-trái + bóng tối góc dưới-phải). Đổi màu ở đây là cả web đổi theo. */
 :root {
-  /* --- Màu chủ đạo: XANH DƯƠNG --- */
+  /* --- Màu chủ đạo --- */
   --primary: #2f62d6;        /* xanh dương chính */
   --primary-d: #234aa8;      /* xanh đậm hơn (hover) */
   --bg: #e4ebf5;             /* nền xanh-xám mềm (màu gốc của Neumorphism) */
@@ -27,5 +27,5 @@
 
   --r: 16px;                 /* bo góc chuẩn */
   --r-sm: 11px;              /* bo góc nhỏ */
-  --fs: 16px;                /* cỡ chữ gốc (đã tăng so với bản cũ 15px) */
+  --fs: 16px;                /* cỡ chữ gốc */
 }

@@ -1,10 +1,12 @@
 // Feature: Xuất kho & vận chuyển - chọn xe, giao hàng.
 import { api, table, soTag, STORE, dmy, num, esc } from "../core.js";
 
+// Vẽ bảng đơn đã soạn trở đi và danh sách đội xe
 async function render() {
   const d = await api("/orders");
   const VK = { dry: "Xe thường", cold: "Xe lạnh" };
   const os = d.orders.filter((o) => o.status !== "new");
+  // Nút thao tác theo trạng thái: đã soạn -> chọn xe + xuất kho, đang giao -> xác nhận đã giao, đã giao -> đúng/trễ hạn
   const body = os.map((o) => {
     let act = "";
     if (o.status === "picked") act = `<select id="v${o.id}">${d.vehicles.map((v) => `<option value="${v.plate}">${v.plate} (${VK[v.kind]})</option>`).join("")}</select>

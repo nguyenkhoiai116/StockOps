@@ -3,6 +3,7 @@ import { api, table, form, confirmBox, STORE, num, esc } from "../core.js";
 
 let ps = []; // giữ tạm danh sách để các nút dùng lại
 
+// Vẽ danh mục sản phẩm kèm ô tìm kiếm, bộ lọc loại kho và nút thêm / xóa
 async function render() {
   ps = await api("/products");
   const body = ps.map((p) => `<tr data-q="${esc((p.sku + " " + p.name + " " + p.cat + " " + p.storage).toLowerCase())}">
@@ -21,6 +22,8 @@ function skuFind() {
   const q = document.getElementById("q").value.toLowerCase(), st = document.getElementById("st").value;
   document.querySelectorAll("tbody tr").forEach((tr) => (tr.hidden = !(tr.dataset.q.includes(q) && tr.dataset.q.includes(st))));
 }
+
+// Mở form thêm sản phẩm mới
 function skuAdd() {
   form("Thêm sản phẩm", [
     { k: "sku", label: "Mã SKU", val: "SKU-0" + (ps.length + 1) }, { k: "name", label: "Tên sản phẩm" },
@@ -29,6 +32,7 @@ function skuAdd() {
     { k: "supplier", label: "Nhà cung cấp", opt: 1 },
   ], (v) => api("/products", "POST", v));
 }
+// Hỏi xác nhận rồi xóa sản phẩm (server từ chối nếu còn tồn kho hoặc đơn hàng)
 const skuDel = (id) => confirmBox("Xóa sản phẩm này?", () => api("/products/" + id, "DELETE"));
 Object.assign(window, { skuFind, skuAdd, skuDel }); // cho onclick trong HTML gọi được
 

@@ -5,7 +5,7 @@
 .chat-fab img { width: 63px; height: 63px; object-fit: contain; display: block; }
 .chat-fab[hidden] { display: none; }
 
-/* ----- Bong bóng lời thoại kiểu truyện tranh, nằm trên nút chat ----- */
+/* ----- Bong bóng lời chào, nằm cạnh nút chat ----- */
 .chat-bubble { position: fixed; right: 92px; bottom: 44px; z-index: 900; max-width: 230px; padding: 12px 16px;
                background: #fff; color: var(--text); border: 3px solid var(--text); border-radius: 18px;
                font-size: .92rem; font-weight: 700; line-height: 1.4; cursor: pointer;

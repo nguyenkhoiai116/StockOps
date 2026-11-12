@@ -10,6 +10,7 @@ bp = Blueprint("products", __name__)
 
 @bp.get("/api/products")
 def api_products():
+    """Danh sách sản phẩm kèm tổng tồn thực có, sắp theo mã SKU."""
     con = db()
     out = rows(con, """SELECT p.*, COALESCE(SUM(b.qty),0) AS stock FROM products p
                        LEFT JOIN batches b ON b.product_id=p.id GROUP BY p.id ORDER BY p.sku""")
@@ -19,6 +20,7 @@ def api_products():
 
 @bp.post("/api/products")
 def api_product_add():
+    """Thêm sản phẩm mới; kiểm tra mã SKU, tên, loại kho và chặn trùng SKU."""
     d = request.get_json()
     if not d.get("sku") or not d.get("name"):
         return bad("Cần nhập mã SKU và tên sản phẩm")
@@ -39,6 +41,7 @@ def api_product_add():
 
 @bp.delete("/api/products/<int:pid>")
 def api_product_del(pid):
+    """Xóa sản phẩm; từ chối nếu sản phẩm còn lô hàng, PO hoặc đơn bán."""
     con = db()
     used = sum(con.execute(f"SELECT COUNT(*) FROM {t} WHERE product_id=?", (pid,)).fetchone()[0]
                for t in ("batches", "pos", "sos"))

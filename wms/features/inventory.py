@@ -12,6 +12,7 @@ bp = Blueprint("inventory", __name__)
 
 @bp.get("/api/inventory")
 def api_inv():
+    """Danh sách lô còn hàng (sắp theo hạn dùng) và 15 giao dịch kho gần nhất."""
     con = db()
     out = rows(con, """SELECT b.*, p.sku, p.name FROM batches b JOIN products p ON p.id=b.product_id
                        WHERE b.qty>0 ORDER BY b.exp""")
@@ -32,6 +33,7 @@ def api_adjust(bid):
         return bad("Số điều chỉnh không hợp lệ")
 
     def work(con):
+        """Kiểm tra không âm, không thấp hơn phần đã giữ, không vượt sức chứa rồi cập nhật và ghi sổ."""
         b = con.execute("SELECT b.*, z.cap, z.name AS zname FROM batches b JOIN zones z ON z.code=b.zone WHERE b.id=?",
                         (bid,)).fetchone()
         if not b or delta == 0:

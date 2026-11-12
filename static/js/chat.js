@@ -1,18 +1,16 @@
 // ===== CHAT: khung chat nổi ở góc phải dưới trang =====
-// Hiện tại chỉ có giao diện. Để nối Claude API sau này, chỉ cần sửa hàm `botReply` bên dưới.
 import { esc } from "./core.js";
 
 const WELCOME = "Xin chào! Tôi là trợ lý Kvis. Bạn cần hỏi gì?";
 
-// Điểm nối API: nhận câu hỏi của người dùng, trả về câu trả lời.
-// TODO: thay phần giả lập bằng lời gọi backend, ví dụ:
-//   const d = await api("/chat", "POST", { message: text });  return d.reply;
-// Lưu ý: không đặt API key Claude ở frontend; gọi qua backend Python.
+// Nhận câu hỏi của người dùng, trả về câu trả lời của bot.
+// Hiện đang giả lập; khi có backend chat thì gọi API tại đây (không đặt API key ở frontend).
 async function botReply(text) {
   await new Promise((r) => setTimeout(r, 400));   // giả lập độ trễ mạng
   return "(Chưa kết nối Claude API) Bạn vừa hỏi: " + text;
 }
 
+// Tạo nút chat, bong bóng lời chào và khung chat, gắn vào cuối <body>
 export function mountChat() {
   const root = document.createElement("div");
   root.id = "chat";
@@ -37,6 +35,7 @@ export function mountChat() {
   const form = root.querySelector("#chatForm");
   const input = root.querySelector("#chatInput");
 
+  // Thêm 1 tin nhắn vào khung chat (who: "user" | "bot") và cuộn xuống cuối
   const addMsg = (who, text) => {
     const div = document.createElement("div");
     div.className = "chat-msg " + who;
@@ -46,14 +45,15 @@ export function mountChat() {
     return div;
   };
 
+  // Mở / đóng khung chat; khi mở thì ẩn nút tròn và đặt con trỏ vào ô nhập
   const setOpen = (open, focus = true) => {
     box.hidden = !open;
     fab.hidden = open;
     if (open && focus) input.focus();
   };
 
-  // Bong bóng lời thoại kiểu truyện tranh: hiện cạnh nút 5 giây khi mở web, rồi tự ẩn.
-  // Bấm vào bong bóng hoặc nút thì mở khung chat ngay.
+  // Bong bóng lời chào: hiện cạnh nút 5 giây khi mở web rồi tự ẩn.
+  // Bấm vào bong bóng hoặc nút thì mở khung chat.
   const bubble = document.createElement("div");
   bubble.className = "chat-bubble";
   bubble.textContent = WELCOME;
@@ -67,6 +67,7 @@ export function mountChat() {
 
   setTimeout(hideBubble, 5000);
 
+  // Gửi câu hỏi: hiện tin của người dùng, hiện "…" trong lúc chờ rồi thay bằng câu trả lời
   form.onsubmit = async (e) => {
     e.preventDefault();
     const text = input.value.trim();

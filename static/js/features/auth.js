@@ -1,6 +1,7 @@
 // Feature: Đăng nhập (giữ chỗ). Nút "Đăng nhập" ở thanh trên gọi showLogin().
 import { api, openModal, closeModal, toast } from "../core.js";
 
+// Mở hộp thoại đăng nhập và gửi tài khoản / mật khẩu lên /api/login
 export function showLogin() {
   openModal(`<h2>Đăng nhập</h2><form id="lg">
     <label>Tài khoản<input name="user" required autocomplete="username"></label>

@@ -15,6 +15,7 @@ import { mountChat } from "./chat.js";
 const PAGES = [dashboard, products, inbound, layout, inventory, picking, shipping, analytics];
 
 // ---------- Trang chính: lưới ô chọn chức năng ----------
+// Mỗi ô là 1 chức năng trong PAGES, bấm vào thì chuyển tới #/<id>
 async function home() {
   return `<h1>Xin chào 👋</h1><p class="sub">Chọn chức năng bạn muốn làm việc.</p>
     <div class="tiles">${PAGES.map((p) => `<a class="tile" href="#/${p.id}">

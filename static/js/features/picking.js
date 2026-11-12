@@ -1,6 +1,7 @@
 // Feature: Soạn hàng - đơn bán và FEFO.
 import { api, table, form, soTag, pickList, dmy, num, esc } from "../core.js";
 
+// Vẽ bảng đơn bán kèm các lô đã chọn; đơn mới có nút "Soạn FEFO"
 async function render() {
   const d = await api("/orders");
   const body = d.orders.map((o) => `<tr><td><b>${o.so_no}</b><small>${esc(o.customer)}</small></td>
@@ -11,6 +12,7 @@ async function render() {
     <div class="card">${table(["Đơn", "Sản phẩm / lô được chọn", "SL*", "Hạn giao", "Trạng thái", ""], body)}</div>`;
 }
 
+// Mở form tạo đơn bán mới (khách hàng, sản phẩm, số lượng, hạn giao)
 async function soAdd() {
   const products = await api("/products");
   form("Tạo đơn bán hàng (SO)", [

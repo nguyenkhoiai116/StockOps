@@ -7,7 +7,7 @@ body {
   font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased;
 }
 
-/* Cỡ chữ (đã tăng cho dễ đọc) */
+/* Cỡ chữ tiêu đề và dòng mô tả dưới tiêu đề */
 h1 { margin: 0 0 6px; font-size: 1.75rem; font-weight: 800; }   /* 28px */
 h2 { margin: 0 0 14px; font-size: 1.19rem; font-weight: 700; }  /* 19px */
 .sub { color: var(--muted); margin: 0 0 20px; font-size: 1rem; }

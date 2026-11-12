@@ -12,4 +12,5 @@ bp = Blueprint("auth", __name__)
 
 @bp.post("/api/login")
 def api_login():
+    """Nhận yêu cầu đăng nhập; hiện trả 501 (chưa hỗ trợ)."""
     return bad("Chức năng đăng nhập sẽ được bổ sung sau", 501)

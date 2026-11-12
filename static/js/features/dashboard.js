@@ -1,6 +1,7 @@
 // Feature: Dashboard tổng quan vận hành.
 import { api, hbar, kpi, capCls, vnd, num, esc } from "../core.js";
 
+// Vẽ Dashboard: thẻ KPI, biểu đồ nhập/xuất 7 ngày, sức chứa theo khu, cảnh báo, gợi ý và hoạt động gần đây
 async function render() {
   const d = await api("/dashboard"), k = d.kpi;
   const max = Math.max(1, ...d.flow.map((f) => Math.max(f.inb, f.out)));

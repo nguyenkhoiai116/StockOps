@@ -9,6 +9,7 @@ bp = Blueprint("layout", __name__)
 
 @bp.get("/api/layout")
 def api_layout():
+    """Thông tin từng khu kho: sức chứa đã dùng và các ô đang có hàng."""
     con = db()
     zs = rows(con, "SELECT * FROM zones")
     for z in zs:

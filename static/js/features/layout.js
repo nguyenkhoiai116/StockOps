@@ -3,9 +3,11 @@ import { api, hbar, capCls, openModal, num, esc, dmy } from "../core.js";
 
 let bins = {}; // nhớ thông tin từng ô để bấm vào xem chi tiết
 
+// Vẽ sơ đồ kho: mỗi khu là 1 thẻ gồm nhiệt độ, mức lấp đầy và lưới ô chứa
 async function render() {
   const d = await api("/layout");
   bins = {};
+  // Vẽ 1 khu: ô trống bị khóa, ô có hàng tô màu theo hạn dùng và bấm được để xem chi tiết
   const zone = (z) => {
     let cells = "";
     for (let i = 1; i <= d.bins; i++) {
@@ -26,6 +28,7 @@ async function render() {
     <div class="cols2">${d.zones.map(zone).join("")}</div>`;
 }
 
+// Mở hộp thoại chi tiết 1 ô: sản phẩm, số lô, hạn dùng, số lượng và nhiệt độ khu
 function binShow(key) {
   const b = bins[key];
   openModal(`<h2>Ô ${b.zone.code}-${String(b.bin).padStart(2, "0")} · ${esc(b.zone.name)}</h2>

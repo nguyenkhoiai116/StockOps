@@ -9,6 +9,8 @@ bp = Blueprint("dashboard", __name__)
 
 @bp.get("/api/dashboard")
 def api_dash():
+    """Số liệu Dashboard: KPI, cảnh báo, sức chứa từng khu, nhập/xuất 7 ngày,
+    gợi ý xử lý và 6 giao dịch gần nhất."""
     con = db()
     k = get_kpis(con)
     al = get_alerts(con)
@@ -23,7 +25,7 @@ def api_dash():
         d = day(i)
         s = lambda kd: abs(con.execute("SELECT COALESCE(SUM(qty),0) FROM txs WHERE kind=? AND substr(ts,1,10)=?", (kd, d)).fetchone()[0])
         flow.append({"day": d[8:] + "/" + d[5:7], "inb": s("IN"), "out": s("OUT")})
-    # Gợi ý kiểu "AI" bằng luật if-then. Chỉ GỢI Ý, không tự thay đổi dữ liệu.
+    # Gợi ý xử lý sinh theo luật if-then; chỉ để người dùng tham khảo, không tự thay đổi dữ liệu
     tips = []
     for p in stock_by_sku(con):
         if p["av"] < p["safety"]:

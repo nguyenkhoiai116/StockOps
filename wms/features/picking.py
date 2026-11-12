@@ -9,6 +9,7 @@ bp = Blueprint("picking", __name__)
 
 @bp.get("/api/orders")
 def api_orders():
+    """Danh sách đơn bán kèm các lô đã chọn cho từng đơn, và danh sách xe."""
     con = db()
     out = rows(con, """SELECT s.*, p.sku, p.name, p.storage FROM sos s JOIN products p ON p.id=s.product_id
                        ORDER BY s.id DESC""")
@@ -22,6 +23,7 @@ def api_orders():
 
 @bp.post("/api/orders")
 def api_order_add():
+    """Tạo đơn bán mới, tự đánh số SO-xxx; hạn giao mặc định là ngày mai."""
     d = request.get_json()
     qty = int(d.get("qty") or 0)
     if qty <= 0 or not d.get("customer"):
@@ -38,4 +40,5 @@ def api_order_add():
 
 @bp.post("/api/orders/<int:so_id>/pick")
 def api_pick(so_id):
+    """Soạn hàng cho 1 đơn theo FEFO (xem core.do_pick)."""
     return run(do_pick, so_id)

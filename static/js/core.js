@@ -3,17 +3,22 @@
 // Mỗi file trong js/features/ sẽ import những thứ cần từ đây.
 
 // ---------- Hằng số dùng chung ----------
+// STORE: tên hiển thị của loại kho. SO: trạng thái đơn bán -> [chữ hiển thị, màu tag]
 export const STORE = { dry: "Kho khô", chilled: "Kho mát", frozen: "Kho đông", cosmetics: "Mỹ phẩm" };
 export const SO = { new: ["Mới", "warn"], picked: ["Đã soạn", "info"], shipping: ["Đang giao", "info"], delivered: ["Đã giao", "ok"] };
 
 // ---------- Hàm định dạng ----------
+// num: số có dấu phân cách hàng nghìn kiểu Việt Nam (1.234.567)
 export const num = (n) => Number(n || 0).toLocaleString("vi-VN");
+// vnd: tiền rút gọn theo tỷ / triệu / đồng
 export const vnd = (n) => (n >= 1e9 ? (n / 1e9).toFixed(2) + " tỷ" : n >= 1e6 ? (n / 1e6).toFixed(1) + " triệu" : num(n) + " đ");
+// dmy: đổi ngày "YYYY-MM-DD" sang "DD/MM/YYYY"
 export const dmy = (s) => s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4);
 // esc: chống chèn mã độc khi hiển thị chữ do người dùng nhập
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // ---------- Gọi API của Python ----------
+// Gửi request tới /api + path, tự đóng gói body thành JSON; lỗi thì ném Error kèm thông báo của server
 export async function api(path, method = "GET", body) {
   const r = await fetch("/api" + path, {
     method,
@@ -25,12 +30,14 @@ export async function api(path, method = "GET", body) {
   return d;
 }
 
-// ---------- Icon (ảnh SVG tự vẽ trong /icons/) ----------
+// ---------- Icon ----------
+// iconSrc: đường dẫn file icon trong /icons/. icon: thẻ <img> của icon đó
 export const iconSrc = (key) => `/icons/${key}.svg`;
 export const icon = (key, cls = "ic") => `<img class="${cls}" src="${iconSrc(key)}" alt="">`;
 
 // ---------- Thông báo nhỏ (toast), tự ẩn sau 3 giây ----------
 let tm;
+// Hiện thông báo ở cuối màn hình; ok = false thì hiện màu đỏ (lỗi)
 export function toast(msg, ok = true) {
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -40,15 +47,18 @@ export function toast(msg, ok = true) {
 }
 
 // ---------- Hộp thoại (modal) ----------
+// Mở hộp thoại với nội dung HTML cho trước
 export function openModal(html) {
   const m = document.getElementById("modal");
   m.innerHTML = `<div class="box">${html}</div>`;
   m.classList.add("show");
 }
+// Đóng hộp thoại; bấm ra vùng tối bên ngoài hộp cũng đóng
 export function closeModal() { document.getElementById("modal").classList.remove("show"); }
 window.addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
 
 // Tạo form trong hộp thoại. fields: [{k, label, type, val, opts:[[giá trị,chữ]], opt:bỏ-bắt-buộc}]
+// Bấm lưu -> gọi onOk(dữ liệu form); thành công thì đóng hộp, báo "Đã lưu" và vẽ lại trang
 export function form(title, fields, onOk, okText = "Lưu") {
   const inputs = fields.map((f) => `<label>${f.label}${f.opts
     ? `<select name="${f.k}">${f.opts.map((o) => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join("")}</select>`
@@ -77,28 +87,37 @@ export async function run(fn, msg) {
 }
 
 // ---------- Mảnh giao diện dùng lại ----------
+// table: bảng có tiêu đề; tên cột kết thúc bằng "*" thì canh phải. Không có dòng nào -> "Chưa có dữ liệu"
 export const table = (heads, body) => body
   ? `<div class="scroll"><table><thead><tr>${heads.map((h) => `<th class="${h.endsWith("*") ? "r" : ""}">${h.replace("*", "")}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`
   : `<div class="empty">Chưa có dữ liệu</div>`;
+// kpi: thẻ chỉ số gồm nhãn, giá trị lớn và dòng giải thích
 export const kpi = (lb, val, ht) => `<div class="card kpi"><div class="lb">${lb}</div><div class="val">${val}</div><div class="ht">${ht}</div></div>`;
+// hbar: thanh ngang dài theo phần trăm (tối đa 100%), kèm tên và chữ hiển thị
 export const hbar = (name, pct, txt, cls = "") => `<div class="hb"><div class="t"><span>${esc(name)}</span><b>${txt}</b></div>
   <div class="track"><div class="fill ${cls}" style="width:${Math.min(pct, 100)}%"></div></div></div>`;
+// capCls: màu thanh sức chứa (>= 90% đỏ, >= 80% vàng)
 export const capCls = (p) => (p >= 90 ? "bad" : p >= 80 ? "warn" : "");
+// expTag: nhãn hạn dùng Hết hạn / Cận date / Còn hạn
 export const expTag = (exp, today, near) => exp < today ? `<span class="tag bad">Hết hạn</span>`
   : exp <= near ? `<span class="tag warn">Cận date</span>` : `<span class="tag ok">Còn hạn</span>`;
+// soTag: nhãn trạng thái đơn bán
 export const soTag = (s) => `<span class="tag ${SO[s][1]}">${SO[s][0]}</span>`;
+// pickList: danh sách các lô đã được chọn (FEFO) cho 1 đơn
 export const pickList = (o) => o.picks.map((k) =>
   `<small>Lô ${esc(k.batch_no)} · HSD ${dmy(k.exp)} · ô ${k.zone}-${String(k.bin).padStart(2, "0")} · ${num(k.qty)} thùng</small>`).join("");
 
 // ---------- Điều hướng (router) ----------
 // Đọc phần sau dấu # trên địa chỉ (vd #/sku) rồi vẽ trang tương ứng vào <main>.
 let PAGES = [], home;
+// Khởi động router: lưu danh sách trang, vẽ lại mỗi khi địa chỉ # thay đổi
 export function startRouter(pages, homeFn) {
   PAGES = pages; home = homeFn;
   window.onhashchange = () => { document.getElementById("view").innerHTML = ""; window.scrollTo(0, 0); route(); };
   route();
 }
 
+// Vẽ trang ứng với địa chỉ hiện tại: dải menu + nội dung; lỗi tải dữ liệu thì hiện nút "Thử lại"
 export async function route() {
   const id = location.hash.slice(2) || "home";
   const page = PAGES.find((p) => p.id === id);
