@@ -3,17 +3,19 @@
 Thêm 1 feature mới: tạo file trong wms/features/ (có biến bp = Blueprint),
 rồi thêm tên nó vào danh sách FEATURES bên dưới. Không cần sửa gì khác.
 """
+from dotenv import load_dotenv
 from flask import Flask
 
-from .features import (analytics, auth, dashboard, inbound, inventory,
+from .features import (analytics, auth, chat, dashboard, inbound, inventory,
                        layout, picking, products, shipping)
 from .seed import init_db
 
 # Mỗi phần tử là 1 nhóm chức năng (1 Blueprint)
-FEATURES = [dashboard, products, inbound, layout, inventory, picking, shipping, analytics, auth]
+FEATURES = [dashboard, products, inbound, layout, inventory, picking, shipping, analytics, auth, chat]
 
 
 def create_app():
+    load_dotenv()   # nạp biến trong file .env (API key, tên model...) vào môi trường
     # static_folder="../static": thư mục giao diện nằm ngoài package wms/
     # static_url_path="": file trong static được phục vụ ngay ở gốc (vd /css/base.css)
     app = Flask(__name__, static_folder="../static", static_url_path="")

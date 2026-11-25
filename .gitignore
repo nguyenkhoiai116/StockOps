@@ -4,3 +4,5 @@ __pycache__/
 wms.db
 static/uploads/*
 !static/uploads/.gitkeep
+# Bí mật: API key, cấu hình riêng từng máy
+.env

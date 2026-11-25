@@ -16,7 +16,7 @@ async function render() {
     return `<tr><td><b>${o.so_no}</b><small>${esc(o.customer)}</small></td><td>${esc(o.sku)} ${esc(o.name)}<small>${STORE[o.storage]} · ${num(o.qty)} thùng</small></td>
       <td>${dmy(o.due)}</td><td>${o.plate || "-"}</td><td>${soTag(o.status)}</td><td class="r"><div class="tools" style="justify-content:flex-end">${act}</div></td></tr>`;
   }).join("");
-  return `<h1>Xuất kho và vận chuyển</h1><p class="sub">Hàng mát / đông lạnh chỉ được xếp lên xe lạnh. Xuất kho mới trừ tồn thật.</p>
+  return `<h1>Xuất kho và vận chuyển</h1><p class="sub">Hàng mát và đông lạnh chỉ xếp lên xe lạnh. Xuất kho mới trừ tồn thật.</p>
     <div class="card">${table(["Đơn", "Hàng", "Hạn giao", "Xe", "Trạng thái", ""], body)}</div>
     <div class="card"><h2>Đội xe</h2>${table(["Biển số", "Tài xế", "Loại"], d.vehicles.map((v) =>
       `<tr><td><b>${v.plate}</b></td><td>${esc(v.driver)}</td><td><span class="tag info">${VK[v.kind]}</span></td></tr>`).join(""))}</div>`;

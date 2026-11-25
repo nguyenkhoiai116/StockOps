@@ -17,9 +17,9 @@ const PAGES = [dashboard, products, inbound, layout, inventory, picking, shippin
 // ---------- Trang chính: lưới ô chọn chức năng ----------
 // Mỗi ô là 1 chức năng trong PAGES, bấm vào thì chuyển tới #/<id>
 async function home() {
-  return `<h1>Xin chào 👋</h1><p class="sub">Chọn chức năng bạn muốn làm việc.</p>
+  return `<h1>Công việc trong kho</h1><p class="sub">Từ nhận hàng đến giao hàng, theo lô và hạn dùng</p>
     <div class="tiles">${PAGES.map((p) => `<a class="tile" href="#/${p.id}">
-      <div class="iconwrap">${icon(p.icon)}</div><b>${esc(p.name)}</b><small>${esc(p.desc)}</small></a>`).join("")}</div>`;
+      ${icon(p.icon)}<b>${esc(p.name)}</b><small>${esc(p.desc)}</small></a>`).join("")}</div>`;
 }
 
 // ---------- Khởi động ----------

@@ -11,7 +11,7 @@ async function render() {
     <td>${o.status === "pending" ? `<span class="tag warn">Chờ nhận</span>` : `<span class="tag ok">Đã nhận ${num(o.recv)}</span>${o.dmg ? ` <span class="tag bad">Hỏng ${o.dmg}</span>` : ""}`}</td>
     <td class="r">${o.status === "pending" ? `<button class="btn sm" onclick="poRecv(${o.id})">Nhận hàng</button>` : ""}</td></tr>`).join("");
   return `<div class="head"><div><h1>Nhập hàng</h1><p class="sub">Nhận hàng sẽ tạo lô mới và cộng tồn kho</p></div>
-    <button class="btn" onclick="poAdd()">+ Tạo PO</button></div>
+    <button class="btn" onclick="poAdd()">Tạo PO</button></div>
     <div class="card">${table(["PO", "Sản phẩm", "SL đặt*", "Ngày đến", "Trạng thái", ""], body)}</div>`;
 }
 

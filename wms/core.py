@@ -70,6 +70,13 @@ def stock_by_sku(con):
                         FROM products p LEFT JOIN batches b ON b.product_id=p.id GROUP BY p.id""", (day(),))
 
 
+def stock_status(av, safety):
+    """Trạng thái tồn: crit (hết hoặc dưới nửa tồn an toàn) | low (dưới tồn an toàn) | ok."""
+    if av <= 0 or av < safety / 2:
+        return "crit"
+    return "low" if av < safety else "ok"
+
+
 def get_alerts(con):
     """Quét dữ liệu thật để sinh cảnh báo (không lưu sẵn, luôn khớp hiện trạng)."""
     out = []
@@ -93,7 +100,7 @@ def get_alerts(con):
         if p["av"] == 0:
             out.append({"kind": "stock", "level": "high", "msg": f"{p['sku']} {p['name']} HẾT HÀNG"})
         elif p["av"] < p["safety"]:
-            out.append({"kind": "stock", "level": "high" if p["av"] < p["safety"] / 2 else "med",
+            out.append({"kind": "stock", "level": "high" if stock_status(p["av"], p["safety"]) == "crit" else "med",
                         "msg": f"{p['sku']} còn {p['av']} thùng khả dụng, dưới tồn an toàn ({p['safety']})"})
     order = {"high": 0, "med": 1, "low": 2}
     return sorted(out, key=lambda a: order[a["level"]])

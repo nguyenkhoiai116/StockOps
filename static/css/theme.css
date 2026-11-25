@@ -1,31 +1,40 @@
-/* ===== THEME: màu sắc + hiệu ứng Neumorphism (phong cách nổi mềm) =====
-   Neumorphism: nền và thẻ CÙNG một màu, tạo khối bằng 2 bóng đổ
-   (bóng sáng góc trên-trái + bóng tối góc dưới-phải). Đổi màu ở đây là cả web đổi theo. */
+/* ===== THEME: màu sắc, bo góc, chữ =====
+   Phong cách phẳng: nền xám trung tính, thẻ trắng, viền mảnh. Đổi màu ở đây là cả web đổi theo.
+   Màu nhấn chỉ dùng cho nút chính, mục đang chọn và dữ liệu quan trọng nhất. */
 :root {
-  /* --- Màu chủ đạo --- */
-  --primary: #2f62d6;        /* xanh dương chính */
-  --primary-d: #234aa8;      /* xanh đậm hơn (hover) */
-  --bg: #e4ebf5;             /* nền xanh-xám mềm (màu gốc của Neumorphism) */
+  /* --- Nền và viền --- */
+  --bg: #f7f8fa;             /* nền trang */
+  --card: #ffffff;           /* nền thẻ, bảng, ô nhập */
+  --raised: #eef0f3;         /* nền khi rê chuột, nhãn kệ, rãnh thanh tiến độ */
+  --line: rgba(23, 23, 23, .1);      /* viền mảnh */
+  --line-2: rgba(23, 23, 23, .18);   /* viền ô nhập, nút phụ */
 
-  /* Chữ */
-  --text: #2a3350;           /* chữ chính (xanh than đậm) */
-  --muted: #6b7691;          /* chữ phụ, mờ */
+  /* --- Chữ: 3 bậc --- */
+  --text: #171717;           /* chữ chính */
+  --text-2: #4d4d52;         /* chữ phụ */
+  --muted: #66666c;          /* chú thích */
 
-  /* Màu trạng thái */
-  --ok: #1f9d6b; --warn: #c9881a; --bad: #d64545; --info: #2f62d6;
+  /* --- Màu nhấn --- */
+  --primary: #2f62d6;
+  --primary-d: #264fae;      /* khi rê chuột */
+  --primary-bg: #eaf0fc;     /* nền nhạt */
 
-  /* --- Bóng đổ Neumorphism --- */
-  --light: #ffffff;          /* bóng sáng */
-  --dark: #b9c6dd;           /* bóng tối (xanh-xám) */
-  /* Khối nổi lên (thẻ, nút, ô chức năng) */
-  --sh-out: 6px 6px 14px var(--dark), -6px -6px 14px var(--light);
-  /* Khối nổi nhỏ (nút, tag) */
-  --sh-sm: 4px 4px 9px var(--dark), -4px -4px 9px var(--light);
-  /* Khối lõm vào (ô nhập, thanh tiến độ, menu đang chọn) */
-  --sh-in: inset 4px 4px 9px var(--dark), inset -4px -4px 9px var(--light);
-  --sh-in-sm: inset 2px 2px 5px var(--dark), inset -3px -3px 6px var(--light);
+  /* --- Màu trạng thái: chữ đậm đi với nền nhạt --- */
+  --ok: #14704a;   --ok-bg: #e3f2ea;
+  --warn: #855300; --warn-bg: #fbeed3;
+  --bad: #b92b2b;  --bad-bg: #fbe5e4;
+  --info: #264fae; --info-bg: #eaf0fc;
+  --bar: #a3a3aa;            /* thanh phụ trong biểu đồ */
+  --s1: #2f62d6; --s2: #0d9488;   /* 2 màu chuỗi số liệu: Nhập, Xuất (khác màu trạng thái) */
 
-  --r: 16px;                 /* bo góc chuẩn */
-  --r-sm: 11px;              /* bo góc nhỏ */
-  --fs: 16px;                /* cỡ chữ gốc */
+  --shadow: 0 8px 24px rgba(0, 0, 0, .1);   /* chỉ cho lớp nổi: hộp thoại, chat, toast */
+
+  --r: 12px;                 /* bo góc thẻ */
+  --r-sm: 8px;               /* bo góc nút, ô nhập */
+  --r-xs: 4px;               /* bo góc nhãn */
+  --page: 1360px;            /* bề rộng nội dung tối đa */
+
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, ui-monospace, monospace;
+  --ease: cubic-bezier(.22, 1, .36, 1);
 }

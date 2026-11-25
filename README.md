@@ -29,6 +29,8 @@ static/                TOÀN BỘ GIAO DIỆN
   js/
     core.js            Công cụ dùng chung (gọi API, hộp thoại, điều hướng...)
     app.js             Khởi động + trang chính
+    chart.js           Biểu đồ nhập / xuất
+    wh3d.js            Kho 3D cơ bản (Three.js, cần mạng; mất mạng tự về 2D)
     features/          MỖI CHỨC NĂNG 1 FILE (trùng tên với bên backend)
   icons/               Bộ icon SVG tự vẽ
 
