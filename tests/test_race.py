@@ -13,7 +13,7 @@ import unittest
 
 from wms import core, create_app
 from wms import db as dbm
-from wms.features import auth, inbound
+from wms.features import auth
 from wms.users import set_password
 
 PW = secrets.token_urlsafe(12)   # mật khẩu thử, sinh ngẫu nhiên mỗi lần chạy
@@ -42,10 +42,10 @@ class RaceTest(unittest.TestCase):
         with con:
             set_password(con, "admin", PW)
         con.close()
-        self.rows, self.free = core.rows, inbound.free_bin
+        self.rows, self.free = core.rows, core.free_bin
 
     def tearDown(self):
-        core.rows, inbound.free_bin = self.rows, self.free
+        core.rows, core.free_bin = self.rows, self.free
         dbm.DB = self.old
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -94,7 +94,7 @@ class RaceTest(unittest.TestCase):
         def slow(con, code):
             wait()   # đã kiểm PO còn chờ nhận, sắp tạo lô
             return self.free(con, code)
-        inbound.free_bin = slow
+        core.free_bin = slow
         body = {"qty": 300, "dmg": 0, "batch_no": "L-T1", "exp": "2099-01-01"}
         self.assertEqual(self.twice("/api/pos/1/receive", body), [200, 400])
         self.assertEqual(self.q("SELECT COUNT(*) FROM batches WHERE batch_no='L-T1'")[0], 1)

@@ -40,6 +40,45 @@ def zone_status(con):
     return zs
 
 
+def pick_zone(con, storage, qty, code=None):
+    """Chọn chỗ cất lô mới: khu đúng loại kho (dry/chilled/frozen/cosmetics), còn đủ sức chứa, còn ô trống.
+    Có nhiều khu hợp lệ (vd DRY và DRY2) thì chọn khu còn trống nhiều thùng nhất để chia đều tải.
+    code: khu người dùng chỉ định (bỏ trống = tự chọn). Trả về (khu, số ô); không khu nào nhận được thì ValueError."""
+    zs = [z for z in zone_status(con) if z["storage"] == storage and (not code or z["code"] == code)]
+    if not zs:
+        raise ValueError(f"Khu {code} không có hoặc không chứa được loại hàng này" if code
+                         else "Chưa có khu nào chứa được loại hàng này")
+    why = []
+    for z in sorted(zs, key=lambda z: (z["used"] - z["cap"], z["code"])):   # còn trống nhiều nhất xếp trước
+        if z["used"] + qty > z["cap"]:
+            why.append(f"{z['name']} không đủ sức chứa cho {qty} thùng")
+            continue
+        b = free_bin(con, z["code"])
+        if b is None:
+            why.append(f"{z['name']} đã hết ô trống")
+            continue
+        return z, b
+    raise ValueError("; ".join(why))
+
+
+def do_receive(con, po_id, no, exp, ok, dmg, zone=None):
+    """Nhận hàng cho 1 PO: tạo lô mới ở khu đúng nhiệt độ, kiểm sức chứa, cộng tồn và ghi sổ IN.
+    ok: số thùng đạt (nhập kho), dmg: số thùng hỏng (ghi lên PO, không nhập kho)."""
+    if ok <= 0 or dmg < 0 or not no:
+        raise ValueError("Cần số lô và số lượng đạt > 0")
+    if exp <= day():
+        raise ValueError("Hạn dùng phải sau hôm nay (không nhận hàng hết hạn)")
+    po = con.execute("SELECT o.*, p.storage FROM pos o JOIN products p ON p.id=o.product_id WHERE o.id=?",
+                     (po_id,)).fetchone()
+    if not po or po["status"] != "pending":
+        raise ValueError("PO không tồn tại hoặc đã nhận")
+    z, b = pick_zone(con, po["storage"], ok, zone)
+    bid = con.execute("INSERT INTO batches (product_id,batch_no,exp,qty,zone,bin) VALUES (?,?,?,?,?,?)",
+                      (po["product_id"], no, exp, ok, z["code"], b)).lastrowid
+    con.execute("UPDATE pos SET status='received', recv=?, dmg=? WHERE id=?", (ok, dmg, po_id))
+    log(con, "IN", po["product_id"], no, ok, f"Nhận {po['po_no']} vào {z['code']}-{b:02d}", bid=bid)
+
+
 # ---------- FEFO & xuất kho ----------
 def do_pick(con, so_id):
     """FEFO (First Expired, First Out): giữ hàng cho đơn, ưu tiên lô hết hạn sớm nhất.

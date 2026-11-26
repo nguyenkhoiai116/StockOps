@@ -493,3 +493,57 @@ class LedgerTest(Base):
         migrate(con)
         self.assertEqual(con.execute("SELECT batch_no, batch_id FROM txs ORDER BY id").fetchall(), [("A1", 1), ("B1", None)])
         con.close()
+
+
+class ReceiveZoneTest(Base):
+    """Nhận hàng khi có nhiều khu cùng loại kho (DRY và DRY2)."""
+
+    def setUp(self):
+        super().setUp()
+        with self.con:
+            self.con.execute("""INSERT INTO zones (code,name,storage,cap,tmin,tmax,temp,hum,racks,bays,levels)
+                                VALUES ('DRY2','Kho khô 2','dry',1000,15,30,25,60,1,2,2)""")
+        self.pid = self.product()
+
+    def po(self):
+        with self.con:
+            return self.con.execute("INSERT INTO pos (po_no,product_id,qty,eta) VALUES (?,?,?,?)",
+                                    (f"PO-T{secrets.token_hex(3)}", self.pid, 100, dbm.day())).lastrowid
+
+    def recv(self, qty, zone=None):
+        self.go(core.do_receive, self.po(), "XN", dbm.day(90), qty, 0, zone)
+        return self.one("SELECT zone, bin FROM batches ORDER BY id DESC LIMIT 1")
+
+    def test_chon_khu_con_trong_nhieu_nhat(self):
+        # DRY còn ~16.000 trống, DRY2 1.000 -> vào DRY
+        self.assertEqual(self.recv(10)[0], "DRY")
+        with self.con:   # làm DRY gần đầy -> lần sau phải vào DRY2
+            self.con.execute("UPDATE zones SET cap=(SELECT SUM(qty) FROM batches WHERE zone='DRY')+5 WHERE code='DRY'")
+        self.assertEqual(self.recv(50), ("DRY2", 1))
+
+    def test_chi_dinh_khu(self):
+        self.assertEqual(self.recv(10, "DRY2")[0], "DRY2")
+
+    def test_chi_dinh_khu_sai_loai_kho(self):
+        with self.assertRaisesRegex(ValueError, "CHL"):
+            self.recv(10, "CHL")
+
+    def test_moi_khu_day_bao_ly_do_tung_khu(self):
+        with self.assertRaises(ValueError) as e:
+            self.recv(50_000)
+        self.assertIn("Kho khô 2", str(e.exception))
+        self.assertIn("Kho khô ", str(e.exception))
+
+    def test_khu_het_o_thi_sang_khu_khac(self):
+        with self.con:   # DRY2 chỉ có 4 ô, lấp kín cả 4
+            for i in range(1, 5):
+                self.con.execute("INSERT INTO batches (product_id,batch_no,exp,qty,zone,bin) VALUES (?,?,?,1,'DRY2',?)",
+                                 (self.pid, f"F{i}", dbm.day(90), i))
+        self.assertEqual(self.recv(10, None)[0], "DRY")
+        with self.assertRaisesRegex(ValueError, "hết ô"):
+            self.recv(10, "DRY2")
+
+    def test_api_nhan_hang_vao_khu_chi_dinh(self):
+        r = self.admin().post(f"/api/pos/{self.po()}/receive", json={"batch_no": "XN", "exp": dbm.day(90), "qty": 10, "zone": "DRY2"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.one("SELECT zone FROM batches WHERE batch_no='XN'"), ("DRY2",))
