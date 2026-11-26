@@ -6,7 +6,7 @@ nhờ vậy quy tắc (vd không cho tồn âm) nằm 1 chỗ duy nhất.
 import sqlite3
 from datetime import date
 
-from .db import NEAR, as_day, bad, day, db, lock, log, rows
+from .db import NEAR, as_day, bad, day, db, lock, log, rows, today
 
 
 # ---------- Vị trí / sức chứa ----------
@@ -199,7 +199,7 @@ def get_alerts(con):
             out.append({"kind": "cap", "level": "med", "msg": f"{z['name']} đã lấp đầy {z['pct']:.0f}%"})
     for b in rows(con, """SELECT b.*, p.sku FROM batches b JOIN products p ON p.id=b.product_id
                           WHERE b.qty>0 AND b.exp<=? ORDER BY b.exp""", (day(NEAR),)):
-        left = (date.fromisoformat(b["exp"]) - date.today()).days
+        left = (date.fromisoformat(b["exp"]) - today()).days
         if left < 0:
             out.append({"kind": "expiry", "level": "high",
                         "msg": f"Lô {b['batch_no']} ({b['sku']}) ĐÃ HẾT HẠN {-left} ngày, còn {b['qty']} thùng"})

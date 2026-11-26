@@ -602,3 +602,23 @@ class DateTest(Base):
         self.assertEqual(c.post("/api/pos", json={"product_id": pid, "qty": 5, "eta": "mai"}).status_code, 400)
         self.assertEqual(c.post("/api/orders", json={"customer": "K", "product_id": pid, "qty": 5, "due": "2099-1-5"}).status_code, 400)
         self.assertEqual(c.post("/api/orders", json={"customer": "K", "product_id": pid, "qty": 5}).status_code, 200)   # bỏ trống = ngày mai
+
+
+class TimeTest(unittest.TestCase):
+    def tearDown(self):
+        os.environ.pop("TZ_OFFSET", None)
+
+    def test_mac_dinh_gio_viet_nam(self):
+        from datetime import datetime, timedelta, timezone
+        os.environ.pop("TZ_OFFSET", None)
+        want = (datetime.now(timezone.utc) + timedelta(hours=7)).date().isoformat()
+        self.assertEqual(dbm.day(), want)
+
+    def test_khong_phu_thuoc_gio_may_chu(self):
+        os.environ["TZ_OFFSET"] = "-12"
+        west = dbm.day()
+        os.environ["TZ_OFFSET"] = "14"
+        self.assertGreater(dbm.day(), west)   # 2 nơi cách nhau 26 giờ luôn khác ngày
+
+    def test_gio_ghi_so_khong_kem_mui_gio(self):
+        self.assertEqual(len(dbm.now().isoformat(timespec="seconds")), 19)   # 'YYYY-MM-DDTHH:MM:SS'

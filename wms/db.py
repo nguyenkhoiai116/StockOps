@@ -3,8 +3,9 @@
 Mọi file trong wms/features/ đều import từ đây để mở kết nối, chạy truy vấn,
 ghi sổ giao dịch... -> tránh lặp code, sửa 1 chỗ dùng mọi nơi.
 """
+import os
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import g, has_request_context, jsonify, request
@@ -37,9 +38,22 @@ def rows(con, sql, args=()):
     return [dict(r) for r in con.execute(sql, args)]
 
 
+def now():
+    """Giờ hiện tại theo giờ kho (mặc định Việt Nam UTC+7, đổi bằng TZ_OFFSET trong .env), không kèm múi giờ.
+    Không dùng giờ của máy chủ: deploy lên server chạy UTC thì FEFO, OTIF, cảnh báo hạn dùng sẽ lệch 7 tiếng.
+    Việt Nam không đổi giờ mùa hè nên độ lệch cố định là đủ (khỏi cần gói tzdata trên Windows)."""
+    tz = timezone(timedelta(hours=float(os.getenv("TZ_OFFSET", "7"))))
+    return datetime.now(tz).replace(tzinfo=None)
+
+
+def today():
+    """Ngày hôm nay theo giờ kho (xem now())."""
+    return now().date()
+
+
 def day(n=0):
-    """Ngày hôm nay cộng n ngày, dạng chữ 'YYYY-MM-DD'."""
-    return (date.today() + timedelta(days=n)).isoformat()
+    """Ngày hôm nay (giờ kho) cộng n ngày, dạng chữ 'YYYY-MM-DD'."""
+    return (today() + timedelta(days=n)).isoformat()
 
 
 def as_day(v, label):
@@ -60,7 +74,7 @@ def log(con, kind, pid, batch, qty, note, ts=None, bid=None):
     """Ghi 1 dòng vào sổ giao dịch kho. kind: IN (nhập) | OUT (xuất) | ADJ (điều chỉnh).
     bid: id của lô (batches.id) -> đối soát được tồn từng lô. Người thực hiện lấy từ phiên đăng nhập;
     chạy ngoài request (dữ liệu mẫu, script) thì để trống = hệ thống."""
-    ts = ts or datetime.now().isoformat(timespec="seconds")
+    ts = ts or now().isoformat(timespec="seconds")
     who = g.user["username"] if has_request_context() and getattr(g, "user", None) else None
     con.execute("INSERT INTO txs (ts, kind, product_id, batch_no, qty, note, batch_id, who) VALUES (?,?,?,?,?,?,?,?)",
                 (ts, kind, pid, batch, qty, note, bid, who))
