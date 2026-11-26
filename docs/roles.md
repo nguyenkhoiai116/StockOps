@@ -32,7 +32,8 @@ Tên người là giả. Tài khoản mẫu không có mật khẩu sẵn; đặ
 | Xuất file CSV tồn kho | ✓ |  | ✓ |  |  |
 | Xem đơn bán và đội xe | ✓ |  |  | ✓ | ✓ |
 | Tạo đơn bán | ✓ |  |  |  |  |
-| Soạn hàng theo FEFO | ✓ |  |  | ✓ |  |
+| Soạn hàng theo FEFO, soạn lại | ✓ |  |  | ✓ |  |
+| Hủy đơn bán chưa xuất kho | ✓ |  |  | ✓ |  |
 | Chọn xe và xuất kho | ✓ |  |  |  | ✓ |
 | Xác nhận đã giao | ✓ |  |  |  | ✓ |
 | Xem trang Phân tích | ✓ |  |  |  |  |

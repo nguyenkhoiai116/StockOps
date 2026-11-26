@@ -1,7 +1,7 @@
 """Feature: Soạn hàng - đơn bán và FEFO."""
 from flask import Blueprint, jsonify
 
-from ..core import create_so, do_pick, run
+from ..core import create_so, do_cancel, do_pick, do_unpick, run
 from ..db import as_int, bad, body, db, day, rows, text
 
 bp = Blueprint("picking", __name__)
@@ -15,7 +15,7 @@ def api_orders():
                        ORDER BY s.id DESC""")
     for o in out:
         o["picks"] = rows(con, """SELECT k.qty, b.batch_no, b.exp, b.zone, b.bin FROM picks k
-                                  JOIN batches b ON b.id=k.batch_id WHERE k.so_id=?""", (o["id"],))
+                                  JOIN batches b ON b.id=k.batch_id WHERE k.so_id=? AND k.released=0""", (o["id"],))
     vs = rows(con, "SELECT * FROM vehicles")
     con.close()
     return jsonify(orders=out, vehicles=vs)
@@ -37,3 +37,15 @@ def api_order_add():
 def api_pick(so_id):
     """Soạn hàng cho 1 đơn theo FEFO (xem core.do_pick)."""
     return run(do_pick, so_id)
+
+
+@bp.post("/api/orders/<int:so_id>/unpick")
+def api_unpick(so_id):
+    """Soạn lại: trả hàng đơn đang giữ, đơn về 'Mới' để soạn FEFO lần nữa (xem core.do_unpick)."""
+    return run(do_unpick, so_id)
+
+
+@bp.post("/api/orders/<int:so_id>/cancel")
+def api_cancel(so_id):
+    """Hủy đơn chưa xuất kho, trả hàng đang giữ về lô (xem core.do_cancel)."""
+    return run(do_cancel, so_id)

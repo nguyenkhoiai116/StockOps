@@ -65,6 +65,32 @@ def do_pick(con, so_id):
     con.execute("UPDATE sos SET status='picked' WHERE id=?", (so_id,))
 
 
+def release(con, so_id):
+    """Trả hàng đơn đang giữ về lô (reserved giảm) và đánh dấu các dòng picks là đã trả (released=1).
+    Giữ bất biến: reserved của 1 lô = tổng picks còn hiệu lực (released=0) của các đơn 'picked'."""
+    for pk in rows(con, "SELECT batch_id, qty FROM picks WHERE so_id=? AND released=0", (so_id,)):
+        con.execute("UPDATE batches SET reserved=reserved-? WHERE id=?", (pk["qty"], pk["batch_id"]))
+    con.execute("UPDATE picks SET released=1 WHERE so_id=? AND released=0", (so_id,))
+
+
+def do_unpick(con, so_id):
+    """Bỏ phần đã soạn để soạn lại theo FEFO (vd lô hết hạn trước khi kịp xuất): trả hàng giữ, đơn về 'new'."""
+    so = con.execute("SELECT status FROM sos WHERE id=?", (so_id,)).fetchone()
+    if not so or so["status"] != "picked":
+        raise ValueError("Chỉ soạn lại được đơn đã soạn và chưa xuất kho")
+    release(con, so_id)
+    con.execute("UPDATE sos SET status='new' WHERE id=?", (so_id,))
+
+
+def do_cancel(con, so_id):
+    """Hủy đơn chưa xuất kho: đơn đã soạn thì trả hàng giữ về lô trước. Đơn đã xuất kho không hủy được."""
+    so = con.execute("SELECT status FROM sos WHERE id=?", (so_id,)).fetchone()
+    if not so or so["status"] not in ("new", "picked"):
+        raise ValueError("Chỉ hủy được đơn chưa xuất kho")
+    release(con, so_id)
+    con.execute("UPDATE sos SET status='cancelled' WHERE id=?", (so_id,))
+
+
 def do_ship(con, so_id, plate):
     """Xuất kho: kiểm tra xe phù hợp, trừ tồn thật (On Hand) và ghi sổ."""
     so = con.execute("SELECT s.*, p.storage FROM sos s JOIN products p ON p.id=s.product_id WHERE s.id=?",
@@ -76,7 +102,8 @@ def do_ship(con, so_id, plate):
         raise ValueError("Chưa chọn xe")
     if so["storage"] in ("chilled", "frozen") and v["kind"] != "cold":
         raise ValueError("Cảnh báo xếp hàng: hàng mát/đông lạnh phải đi xe lạnh")
-    for pk in rows(con, "SELECT p.*, b.batch_no FROM picks p JOIN batches b ON b.id=p.batch_id WHERE so_id=?", (so_id,)):
+    for pk in rows(con, """SELECT p.*, b.batch_no FROM picks p JOIN batches b ON b.id=p.batch_id
+                           WHERE so_id=? AND p.released=0""", (so_id,)):   # bỏ các lần soạn đã trả lại
         con.execute("UPDATE batches SET qty=qty-?, reserved=reserved-? WHERE id=?", (pk["qty"], pk["qty"], pk["batch_id"]))
         log(con, "OUT", so["product_id"], pk["batch_no"], -pk["qty"], f"Xuất cho {so['so_no']}")
     con.execute("UPDATE sos SET status='shipping', plate=? WHERE id=?", (plate, so_id))
@@ -150,7 +177,7 @@ def get_kpis(con):
     total = one("SELECT SUM(qty) FROM batches")
     cap = one("SELECT SUM(cap) FROM zones")
     near = one("SELECT SUM(qty) FROM batches WHERE exp>=? AND exp<=?", (day(), day(NEAR)))
-    n_so = one("SELECT COUNT(*) FROM sos")
+    n_so = one("SELECT COUNT(*) FROM sos WHERE status!='cancelled'")   # đơn đã hủy không tính vào tỉ lệ đáp ứng
     done = one("SELECT COUNT(*) FROM sos WHERE status='delivered'")
     return {
         "value": one("SELECT SUM(b.qty*p.price) FROM batches b JOIN products p ON p.id=b.product_id"),
@@ -158,9 +185,9 @@ def get_kpis(con):
         "cap_pct": round(total / cap * 100, 1) if cap else 0,
         "near_pct": round(near / total * 100, 1) if total else 0,
         "otif": round(one("SELECT COUNT(*) FROM sos WHERE on_time=1") / done * 100, 1) if done else 0,
-        "fill": round(one("SELECT COUNT(*) FROM sos WHERE status!='new'") / n_so * 100, 1) if n_so else 0,
+        "fill": round(one("SELECT COUNT(*) FROM sos WHERE status NOT IN ('new','cancelled')") / n_so * 100, 1) if n_so else 0,
         "po_wait": one("SELECT COUNT(*) FROM pos WHERE status='pending'"),
-        "so_open": one("SELECT COUNT(*) FROM sos WHERE status!='delivered'"),
+        "so_open": one("SELECT COUNT(*) FROM sos WHERE status NOT IN ('delivered','cancelled')"),
         "expired_value": one("SELECT SUM(b.qty*p.price) FROM batches b JOIN products p ON p.id=b.product_id WHERE b.exp<?", (day(),)),
     }
 

@@ -339,3 +339,75 @@ class ForeignKeyTest(Base):
         n = self.one("SELECT COUNT(*) FROM sos")[0]
         self.assertEqual(self.admin().post("/api/orders", json={"customer": "Khách", "product_id": pid, "qty": 5}).status_code, 200)
         self.assertEqual(self.one("SELECT so_no FROM sos ORDER BY id DESC LIMIT 1"), (f"SO-{n + 1:03d}",))
+
+
+class CancelTest(Base):
+    """Hủy đơn và soạn lại: reserved phải luôn = tổng picks còn hiệu lực của các đơn 'picked'."""
+
+    def setup_lots(self):
+        pid = self.product()
+        self.batch(pid, "XB", 10, 50, bin=50)
+        self.batch(pid, "XA", 60, 50, bin=51)
+        return pid
+
+    def invariant(self):
+        bad = self.con.execute("""SELECT b.batch_no, b.reserved,
+                 (SELECT COALESCE(SUM(k.qty),0) FROM picks k JOIN sos s ON s.id=k.so_id
+                  WHERE k.batch_id=b.id AND k.released=0 AND s.status='picked') AS want
+                 FROM batches b WHERE b.reserved != want""").fetchall()
+        self.assertEqual([tuple(r) for r in bad], [])
+
+    def test_huy_don_da_soan_tra_hang_giu(self):
+        pid = self.setup_lots()
+        sid = self.order(pid, 80)
+        self.go(core.do_pick, sid)
+        self.go(core.do_cancel, sid)
+        self.assertEqual(self.one("SELECT SUM(reserved) FROM batches WHERE product_id=?", (pid,)), (0,))
+        self.assertEqual(self.one("SELECT status FROM sos WHERE id=?", (sid,)), ("cancelled",))
+        self.assertEqual(self.one("SELECT COUNT(*), SUM(released) FROM picks WHERE so_id=?", (sid,)), (2, 2))   # còn lịch sử
+        self.invariant()
+
+    def test_huy_don_moi(self):
+        sid = self.order(self.setup_lots(), 10)
+        self.go(core.do_cancel, sid)
+        self.assertEqual(self.one("SELECT status FROM sos WHERE id=?", (sid,)), ("cancelled",))
+
+    def test_khong_huy_don_da_xuat(self):
+        sid = self.order(self.setup_lots(), 10)
+        self.go(core.do_pick, sid)
+        self.go(core.do_ship, sid, DRY_CAR)
+        with self.assertRaises(ValueError):
+            self.go(core.do_cancel, sid)
+
+    def test_soan_lai_roi_xuat_chi_tru_lan_soan_moi(self):
+        pid = self.setup_lots()
+        sid = self.order(pid, 30)
+        self.go(core.do_pick, sid)
+        self.go(core.do_unpick, sid)
+        self.assertEqual(self.one("SELECT status FROM sos WHERE id=?", (sid,)), ("new",))
+        self.go(core.do_pick, sid)
+        self.invariant()
+        self.go(core.do_ship, sid, DRY_CAR)
+        self.assertEqual(self.one("SELECT SUM(qty), SUM(reserved) FROM batches WHERE product_id=?", (pid,)), (70, 0))
+        self.invariant()
+
+    def test_soan_lai_chi_cho_don_da_soan(self):
+        sid = self.order(self.setup_lots(), 10)
+        with self.assertRaises(ValueError):
+            self.go(core.do_unpick, sid)
+
+    def test_kpi_bo_don_da_huy(self):
+        before = core.get_kpis(self.con)
+        sid = self.order(self.setup_lots(), 10)
+        self.go(core.do_cancel, sid)
+        after = core.get_kpis(self.con)
+        self.assertEqual((after["fill"], after["so_open"]), (before["fill"], before["so_open"]))
+
+    def test_api_huy_va_soan_lai(self):
+        pid = self.setup_lots()
+        sid = self.order(pid, 10)
+        c = self.admin()
+        self.assertEqual(c.post(f"/api/orders/{sid}/pick").status_code, 200)
+        self.assertEqual(c.post(f"/api/orders/{sid}/unpick").status_code, 200)
+        self.assertEqual(c.post(f"/api/orders/{sid}/cancel").status_code, 200)
+        self.assertEqual(c.post(f"/api/orders/{sid}/cancel").status_code, 400)   # hủy 2 lần

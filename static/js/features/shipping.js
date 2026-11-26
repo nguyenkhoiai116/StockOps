@@ -5,7 +5,7 @@ import { api, can, table, soTag, STORE, dmy, num, esc } from "../core.js";
 async function render() {
   const d = await api("/orders");
   const VK = { dry: "Xe thường", cold: "Xe lạnh" };
-  const os = d.orders.filter((o) => o.status !== "new");
+  const os = d.orders.filter((o) => !["new", "cancelled"].includes(o.status));   // chỉ đơn đã soạn trở đi, bỏ đơn đã hủy
   // Nút thao tác theo trạng thái: đã soạn -> chọn xe + xuất kho, đang giao -> xác nhận đã giao, đã giao -> đúng/trễ hạn
   const body = os.map((o) => {
     let act = "";

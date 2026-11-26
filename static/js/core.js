@@ -5,7 +5,7 @@
 // ---------- Hằng số dùng chung ----------
 // STORE: tên hiển thị của loại kho. SO: trạng thái đơn bán -> [chữ hiển thị, màu tag]
 export const STORE = { dry: "Kho khô", chilled: "Kho mát", frozen: "Kho đông", cosmetics: "Mỹ phẩm" };
-export const SO = { new: ["Mới", "warn"], picked: ["Đã soạn", "info"], shipping: ["Đang giao", "info"], delivered: ["Đã giao", "ok"] };
+export const SO = { new: ["Mới", "warn"], picked: ["Đã soạn", "info"], shipping: ["Đang giao", "info"], delivered: ["Đã giao", "ok"], cancelled: ["Đã hủy", "bad"] };
 
 // ---------- Hàm định dạng ----------
 // num: số có dấu phân cách hàng nghìn kiểu Việt Nam (1.234.567)
