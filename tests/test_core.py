@@ -547,3 +547,31 @@ class ReceiveZoneTest(Base):
         r = self.admin().post(f"/api/pos/{self.po()}/receive", json={"batch_no": "XN", "exp": dbm.day(90), "qty": 10, "zone": "DRY2"})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(self.one("SELECT zone FROM batches WHERE batch_no='XN'"), ("DRY2",))
+
+
+class BinTest(Base):
+    def setup_two(self):
+        pid = self.product()
+        old = self.batch(pid, "XO", 60, 10, bin=50)
+        self.go(core.do_adjust, old, -10, "hủy lô")   # ô 50 thành trống
+        new = self.batch(pid, "XN", 60, 20, bin=50)   # ô 50 cấp cho lô mới
+        return old, new
+
+    def test_khong_tang_lai_lo_da_ve_0_khi_o_da_co_lo_khac(self):
+        old, _ = self.setup_two()
+        with self.assertRaisesRegex(ValueError, "DRY-50"):
+            self.go(core.do_adjust, old, 5, "kiểm kê")
+
+    def test_db_chan_2_lo_con_hang_cung_o(self):
+        import sqlite3
+        old, _ = self.setup_two()
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.con:
+                self.con.execute("UPDATE batches SET qty=5 WHERE id=?", (old,))
+
+    def test_tang_lai_lo_da_ve_0_khi_o_con_trong(self):
+        pid = self.product()
+        bid = self.batch(pid, "XO", 60, 10, bin=50)
+        self.go(core.do_adjust, bid, -10, "nhầm")
+        self.go(core.do_adjust, bid, 10, "sửa lại")
+        self.assertEqual(self.one("SELECT qty FROM batches WHERE id=?", (bid,)), (10,))

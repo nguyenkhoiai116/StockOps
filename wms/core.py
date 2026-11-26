@@ -275,6 +275,10 @@ def do_adjust(con, bid, delta, note):
         raise ValueError(f"Lô đang giữ {b['reserved']} thùng cho đơn hàng, không giảm thấp hơn được")
     if delta > 0 and zone_used(con, b["zone"]) + delta > b["cap"]:
         raise ValueError(f"{b['zname']} không đủ sức chứa")
+    # Lô đã về 0 thì ô của nó đã được coi là trống và có thể đã cấp cho lô khác -> không cho "hồi sinh" vào ô đó
+    if b["qty"] == 0 and delta > 0 and con.execute(
+            "SELECT 1 FROM batches WHERE zone=? AND bin=? AND qty>0 AND id!=?", (b["zone"], b["bin"], bid)).fetchone():
+        raise ValueError(f"Ô {b['zone']}-{b['bin']:02d} đã có lô khác. Lô đã về 0 không tăng lại được, hãy nhận hàng thành lô mới")
     con.execute("UPDATE batches SET qty=? WHERE id=?", (new, bid))
     log(con, "ADJ", b["product_id"], b["batch_no"], delta, note, bid=bid)
 
