@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request
 
 from ..core import free_bin, zone_used
-from ..db import BINS, bad, day, db, log, rows
+from ..db import bad, day, db, log, rows
 
 bp = Blueprint("inbound", __name__)
 
@@ -53,7 +53,7 @@ def api_po_receive(po_id):
             z = con.execute("SELECT * FROM zones WHERE storage=?", (po["storage"],)).fetchone()  # đúng vùng nhiệt
             if zone_used(con, z["code"]) + ok > z["cap"]:
                 raise ValueError(f"{z['name']} không đủ sức chứa cho {ok} thùng")
-            b = free_bin(con, z["code"], BINS)
+            b = free_bin(con, z["code"])
             if b is None:
                 raise ValueError(f"{z['name']} đã hết ô trống")
             con.execute("INSERT INTO batches (product_id,batch_no,exp,qty,zone,bin) VALUES (?,?,?,?,?,?)",

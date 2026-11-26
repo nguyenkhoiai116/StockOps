@@ -14,10 +14,18 @@ def zone_used(con, code):
     return con.execute("SELECT COALESCE(SUM(qty),0) FROM batches WHERE zone=?", (code,)).fetchone()[0]
 
 
-def free_bin(con, code, bins):
-    """Tìm ô trống đầu tiên trong khu (ô đang có lô qty>0 là bận)."""
+def zone_bins(z):
+    """Số ô chứa của khu = số dãy kệ x số ô mỗi dãy x số tầng (z là dict hoặc Row)."""
+    return z["racks"] * z["bays"] * z["levels"]
+
+
+def free_bin(con, code):
+    """Tìm ô trống đầu tiên trong khu (ô đang có lô qty>0 là bận); None nếu khu hết ô."""
+    z = con.execute("SELECT racks, bays, levels FROM zones WHERE code=?", (code,)).fetchone()
+    if not z:
+        return None
     used = {r[0] for r in con.execute("SELECT bin FROM batches WHERE zone=? AND qty>0", (code,))}
-    return next((i for i in range(1, bins + 1) if i not in used), None)
+    return next((i for i in range(1, zone_bins(z) + 1) if i not in used), None)
 
 
 # ---------- FEFO & xuất kho ----------

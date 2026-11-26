@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify
 
 from ..core import zone_used
-from ..db import BINS, db, day, rows
+from ..db import db, day, rows
 
 bp = Blueprint("layout", __name__)
 
@@ -19,4 +19,4 @@ def api_layout():
                                  FROM batches b JOIN products p ON p.id=b.product_id
                                  WHERE b.zone=? AND b.qty>0""", (z["code"],))
     con.close()
-    return jsonify(zones=zs, bins=BINS, today=day(), near=day(30))
+    return jsonify(zones=zs, today=day(), near=day(30))

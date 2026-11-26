@@ -11,7 +11,6 @@ from flask import jsonify
 
 ROOT = Path(__file__).resolve().parent.parent   # thư mục dự án
 DB = str(ROOT / "wms.db")   # file database SQLite, tự tạo ở lần chạy đầu; đường dẫn cố định nên chạy từ thư mục nào cũng ra cùng 1 file
-BINS = 12       # số ô chứa (bin) trong mỗi khu kho
 NEAR = 30       # còn <= 30 ngày tới hạn thì coi là "cận date"
 
 

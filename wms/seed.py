@@ -46,11 +46,11 @@ def init_db():
             ("SKU-009", "Nước mắm 750ml (thùng 12)", "Gia vị", "thùng", "dry", 560000, 80, "NCC Thực Phẩm Á Châu"),
             ("SKU-010", "Bánh quy bơ 400g (thùng 24)", "Bánh kẹo", "thùng", "dry", 240000, 100, "NCC Thực Phẩm Á Châu"),
         ])
-        con.executemany("INSERT INTO zones VALUES (?,?,?,?,?,?,?,?)", [
-            ("DRY", "Kho khô", "dry", 3000, 15, 30, 27.5, 60),
-            ("CHL", "Kho mát 2-8°C", "chilled", 800, 2, 8, 9.1, 75),      # 9.1°C: cố ý vượt ngưỡng để có cảnh báo
-            ("FRZ", "Kho đông -18°C", "frozen", 500, -25, -18, -18.6, 55),
-            ("COS", "Kho mỹ phẩm", "cosmetics", 400, 15, 28, 24.0, 50),
+        con.executemany("INSERT INTO zones (code,name,storage,cap,tmin,tmax,temp,hum,racks,bays,levels) VALUES (?,?,?,?,?,?,?,?,?,?,?)", [
+            ("DRY", "Kho khô", "dry", 20000, 15, 30, 27.5, 60, 4, 6, 4),
+            ("CHL", "Kho mát 2-8°C", "chilled", 3000, 2, 8, 9.1, 75, 2, 4, 3),      # 9.1°C: cố ý vượt ngưỡng để có cảnh báo
+            ("FRZ", "Kho đông -18°C", "frozen", 2000, -25, -18, -18.6, 55, 2, 4, 3),
+            ("COS", "Kho mỹ phẩm", "cosmetics", 6000, 15, 28, 24.0, 50, 3, 5, 4),
         ])
         for pid, no, d, q, z, b in [
             (1, "L2401", 150, 400, "DRY", 1), (1, "L2402", 260, 500, "DRY", 2), (2, "L2403", 200, 600, "DRY", 3),
