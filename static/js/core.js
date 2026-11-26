@@ -138,6 +138,17 @@ export const expTag = (exp, today, near) => exp < today ? `<span class="tag bad"
   : exp <= near ? `<span class="tag warn">Cận date</span>` : `<span class="tag ok">Còn hạn</span>`;
 // loc: nhãn kệ ghi mã vị trí, vd FRZ-02 (bỏ bin thì chỉ ghi mã khu)
 export const loc = (zone, bin) => `<span class="loc">${esc(zone)}${bin ? "-" + String(bin).padStart(2, "0") : ""}</span>`;
+// slot: số ô -> dãy, ô, tầng (đếm từ 1) theo kích thước kệ của khu z {bays, levels}
+//   bin − 1 = ((dãy−1)·bays + (ô−1))·levels + (tầng−1)
+export const slot = (bin, z) => {
+  const i = bin - 1;
+  return { rack: Math.floor(i / (z.bays * z.levels)) + 1, bay: (Math.floor(i / z.levels) % z.bays) + 1, level: (i % z.levels) + 1 };
+};
+// spot: chữ ghi vị trí ô, vd "dãy B · ô 3 · tầng 2" (dãy ghi bằng chữ A, B, C…)
+export const spot = (bin, z) => {
+  const s = slot(bin, z);
+  return `dãy ${String.fromCharCode(64 + s.rack)} · ô ${s.bay} · tầng ${s.level}`;
+};
 // STAT: trạng thái tồn của SKU -> [chữ hiển thị, màu tag] (luật tính nằm ở core.py)
 export const STAT = { ok: ["Ổn định", "ok"], low: ["Thấp", "warn"], crit: ["Nguy cấp", "bad"] };
 // plain: bỏ dấu tiếng Việt và viết thường, để tìm kiếm không cần gõ dấu

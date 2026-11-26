@@ -1,5 +1,5 @@
 // Feature: Sơ đồ kho 2D / 3D - khu, ô chứa, mức đầy, tìm vị trí hàng.
-import { api, loc, hbar, capCls, expTag, seg, segSet, params, plain, toast, num, esc, dmy } from "../core.js";
+import { api, loc, hbar, capCls, expTag, seg, segSet, params, plain, toast, num, esc, dmy, spot } from "../core.js";
 
 let d = null;          // dữ liệu /api/layout
 let bins = {};         // key (vd DRY3) -> thông tin ô có hàng, kèm khu
@@ -60,16 +60,16 @@ function info() {
   return `<h2>Chi tiết ô</h2><p class="note" style="margin:0">Bấm vào một khối hàng để xem lô, hạn dùng và số lượng, hoặc tìm theo mã, tên, số lô</p>`;
 }
 
-// Sơ đồ 2D: mỗi khu 1 lưới ô
+// Sơ đồ 2D: mỗi khu 1 lưới ô, số ô theo kệ của khu (z.bins = dãy · ô · tầng)
 function html2d() {
   const f = found();
   return `<div class="wh-2d">${d.zones.filter((z) => !zone || z.code === zone).map((z) => {
     let cells = "";
-    for (let i = 1; i <= d.bins; i++) {
+    for (let i = 1; i <= z.bins; i++) {
       const k = z.code + i, b = bins[k];
       cells += b ? `<button class="bin has ${f && !f.has(k) ? "dim" : ""}" aria-pressed="${sel === k}" style="--c:${colorOf(k)}" onclick="whPick('${k}')"
-          title="${esc(b.name)}, ${EXP[expOf(b)][1].toLowerCase()}"><span class="no">${no(i)}</span><span><span class="sk">${esc(b.sku)}</span><span class="q">${num(b.qty)}</span></span></button>`
-        : `<button class="bin" disabled><span class="no">${no(i)}</span></button>`;
+          title="${spot(i, z)}: ${esc(b.name)}, ${EXP[expOf(b)][1].toLowerCase()}"><span class="no">${no(i)}</span><span><span class="sk">${esc(b.sku)}</span><span class="q">${num(b.qty)}</span></span></button>`
+        : `<button class="bin" disabled title="${spot(i, z)}: trống"><span class="no">${no(i)}</span></button>`;
     }
     return `<section><h2>${esc(z.name)} ${loc(z.code)}</h2><div class="bins">${cells}</div></section>`;
   }).join("")}</div>`;
@@ -100,18 +100,16 @@ async function stage() {
   el.innerHTML = `<div class="wh-load">Đang tải mô hình 3D</div>`;
   sync();
   try {
-    const { mount, slot } = await import("../wh3d.js");
+    const { mount } = await import("../wh3d.js");
     if (my !== turn || !el.isConnected) return;   // đã chuyển trang hoặc đổi chế độ trong lúc tải
     el.innerHTML = "";
     view3d = mount(el, {
-      bins: d.bins,
-      zones: d.zones.map((z) => ({ code: z.code, name: z.name, sub: `${z.code}  ${num(z.pct)}%` })),
-      loads: Object.entries(bins).map(([key, b]) => {
-        const s = slot(b.bin);
-        return { key, zone: b.zone.code, bin: b.bin, tip: `${code(b)}, kệ ${s.rack} tầng ${s.level}: ${b.sku}, ${num(b.qty)} thùng` };
-      }),
+      zones: d.zones.map((z) => ({ code: z.code, name: z.name, sub: `${z.code}  ${num(z.pct)}%`, racks: z.racks, bays: z.bays, levels: z.levels })),
+      loads: Object.entries(bins).map(([key, b]) => ({ key, zone: b.zone.code, bin: b.bin, tip: `${code(b)}, ${spot(b.bin, b.zone)}: ${b.sku}, ${num(b.qty)} thùng` })),
+      flow: {},   // luồng xe, đơn: chưa vẽ
     }, whPick);
-    el.insertAdjacentHTML("beforeend", `<div class="wh-note">Cách xếp kệ, tầng là minh họa. Kéo để xoay, cuộn để phóng to</div>`);
+    const out = view3d.outside ? `. ${view3d.outside} lô nằm ngoài sơ đồ` : "";
+    el.insertAdjacentHTML("beforeend", `<div class="wh-note">Số cửa và chỗ đỗ là minh họa, xe xếp theo thứ tự. Kéo để xoay, cuộn để phóng to${out}</div>`);
     if (zone) view3d.focus(zone);
     apply();
   } catch (x) {
@@ -146,7 +144,7 @@ Object.assign(window, { whMode, whColor, whZone, whPick, whFind });
 async function render() {
   d = await api("/layout");
   bins = {};
-  for (const z of d.zones) for (const b of z.bins) bins[z.code + b.bin] = { ...b, zone: z };
+  for (const z of d.zones) for (const b of z.items) bins[z.code + b.bin] = { ...b, zone: z };   // z.items: lô đang có hàng, z.bins: số ô
   q = params().get("q") ?? "";
   zone = ""; sel = null;
   return `<div class="wh-bar"><h1>Sơ đồ kho</h1>
