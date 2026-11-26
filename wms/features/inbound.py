@@ -1,8 +1,8 @@
 """Feature: Nhập hàng - PO và nhận hàng theo lô."""
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
 from ..core import create_po, free_bin, run, zone_used
-from ..db import bad, day, db, lock, log, rows
+from ..db import as_int, bad, body, day, db, lock, log, rows, text
 
 bp = Blueprint("inbound", __name__)
 
@@ -20,22 +20,24 @@ def api_pos():
 @bp.post("/api/pos")
 def api_po_add():
     """Tạo PO mới, tự đánh số PO-xxx; ngày đến mặc định là ngày mai."""
-    d = request.get_json(silent=True)
-    d = d if isinstance(d, dict) else {}   # body hỏng hoặc không phải {...} -> báo lỗi rõ thay vì lỗi 500
+    d = body()   # body hỏng -> {} -> báo lỗi 400 thay vì lỗi 500
     try:
-        pid, qty = int(d.get("product_id")), int(d.get("qty") or 0)
-    except (TypeError, ValueError):
+        pid, qty = as_int(d.get("product_id"), "Sản phẩm"), as_int(d.get("qty") or 0, "Số lượng")
+    except ValueError:
         return bad("Cần chọn sản phẩm và nhập số lượng")
     # run() khóa trước khi đếm số PO, nên 2 PO tạo cùng lúc không trùng số; luật nằm ở core.create_po
-    return run(create_po, pid, qty, d.get("eta") or day(1))
+    return run(create_po, pid, qty, text(d.get("eta")) or day(1))
 
 
 @bp.post("/api/pos/<int:po_id>/receive")
 def api_po_receive(po_id):
     """Nhận hàng: tạo lô mới, cất vào đúng khu nhiệt độ, kiểm tra sức chứa, cộng tồn."""
-    d = request.get_json()
-    ok, dmg = int(d.get("qty") or 0), int(d.get("dmg") or 0)
-    exp, no = d.get("exp", ""), (d.get("batch_no") or "").strip()
+    d = body()
+    try:
+        ok, dmg = as_int(d.get("qty") or 0, "Số lượng đạt"), as_int(d.get("dmg") or 0, "Số lượng hỏng")
+    except ValueError as e:
+        return bad(str(e))
+    exp, no = text(d.get("exp")), text(d.get("batch_no"))
     if ok <= 0 or dmg < 0 or not no:
         return bad("Cần số lô và số lượng đạt > 0")
     if exp <= day():

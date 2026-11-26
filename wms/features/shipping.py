@@ -2,10 +2,10 @@
 
 Lưu ý: đọc đơn hàng dùng chung API /api/orders của feature picking.
 """
-from flask import Blueprint, request
+from flask import Blueprint
 
 from ..core import do_ship, run
-from ..db import day
+from ..db import body, day, text
 
 bp = Blueprint("shipping", __name__)
 
@@ -13,7 +13,7 @@ bp = Blueprint("shipping", __name__)
 @bp.post("/api/orders/<int:so_id>/ship")
 def api_ship(so_id):
     """Xuất kho 1 đơn đã soạn lên xe được chọn (xem core.do_ship)."""
-    return run(do_ship, so_id, (request.get_json() or {}).get("plate"))
+    return run(do_ship, so_id, text(body().get("plate")))
 
 
 @bp.post("/api/orders/<int:so_id>/deliver")

@@ -7,7 +7,7 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from flask import jsonify
+from flask import jsonify, request
 
 ROOT = Path(__file__).resolve().parent.parent   # thư mục dự án
 DB = str(ROOT / "wms.db")   # file database SQLite, tự tạo ở lần chạy đầu; đường dẫn cố định nên chạy từ thư mục nào cũng ra cùng 1 file
@@ -49,3 +49,26 @@ def log(con, kind, pid, batch, qty, note, ts=None):
 def bad(msg, code=400):
     """Trả lỗi về cho giao diện kèm lời giải thích để người dùng đọc được."""
     return jsonify(error=msg), code
+
+
+def body():
+    """Body JSON của request, luôn là dict. Body hỏng, rỗng hoặc không phải {...} (mảng, chuỗi, số)
+    thì trả {} -> route kiểm tra thiếu trường và báo lỗi 400, không bao giờ nổ lỗi 500."""
+    d = request.get_json(silent=True)
+    return d if isinstance(d, dict) else {}
+
+
+def as_int(v, label):
+    """Đổi giá trị từ body sang số nguyên. Sai kiểu (chữ, mảng, True/False...) thì ValueError
+    kèm lời giải thích; route bắt ValueError và trả 400 qua bad()."""
+    if isinstance(v, bool) or not isinstance(v, (int, str)):
+        raise ValueError(f"{label} phải là số nguyên")
+    try:
+        return int(v)
+    except ValueError:
+        raise ValueError(f"{label} phải là số nguyên") from None
+
+
+def text(v):
+    """Giá trị chữ từ body: số / mảng / None đều thành chuỗi gọn, tránh lỗi khi gọi .strip()."""
+    return v.strip() if isinstance(v, str) else ""

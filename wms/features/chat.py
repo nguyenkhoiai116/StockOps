@@ -3,11 +3,11 @@
 Luồng: giao diện gửi câu hỏi -> backend ghép [lời dặn + số liệu kho + lịch sử + câu hỏi]
 -> gọi LLM -> trả câu trả lời. API key chỉ nằm ở backend, trình duyệt không bao giờ thấy.
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
 from ..ai.llm import LLMError, cfg, chat, ready
 from ..ai.prompts import SYSTEM, snapshot
-from ..db import bad, db
+from ..db import bad, body, db, text
 
 bp = Blueprint("chat", __name__)
 
@@ -24,16 +24,17 @@ def api_status():
 @bp.post("/api/chat")
 def api_chat():
     """Nhận {text, history} và trả {reply, model}."""
-    d = request.get_json(silent=True) or {}
-    text = str(d.get("text") or "").strip()
-    if not text:
+    d = body()   # body hỏng -> {} -> "Câu hỏi đang trống", không gọi LLM
+    q = text(d.get("text"))
+    if not q:
         return bad("Câu hỏi đang trống")
-    if len(text) > MAX_LEN:
+    if len(q) > MAX_LEN:
         return bad(f"Câu hỏi dài quá {MAX_LEN} ký tự")
 
     # Lịch sử từ giao diện: chỉ nhận đúng 2 vai user/assistant, cắt ngắn từng tin
     hist = []
-    for m in (d.get("history") or [])[-MAX_HIST:]:
+    his = d.get("history") if isinstance(d.get("history"), list) else []
+    for m in his[-MAX_HIST:]:
         if isinstance(m, dict) and m.get("role") in ("user", "assistant"):
             hist.append({"role": m["role"], "content": str(m.get("content", ""))[:MAX_LEN * 2]})
 
@@ -44,7 +45,7 @@ def api_chat():
         con.close()
 
     msgs = [{"role": "system", "content": SYSTEM + "\n\n" + ctx}, *hist,
-            {"role": "user", "content": text}]
+            {"role": "user", "content": q}]
     try:
         reply, model = chat(msgs)
     except LLMError as e:

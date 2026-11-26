@@ -1,8 +1,8 @@
 """Feature: Soạn hàng - đơn bán và FEFO."""
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
 from ..core import do_pick, run
-from ..db import db, day, lock, rows
+from ..db import as_int, bad, body, db, day, lock, rows, text
 
 bp = Blueprint("picking", __name__)
 
@@ -24,17 +24,20 @@ def api_orders():
 @bp.post("/api/orders")
 def api_order_add():
     """Tạo đơn bán mới, tự đánh số SO-xxx; hạn giao mặc định là ngày mai."""
-    d = request.get_json()
-    qty = int(d.get("qty") or 0)
-    if qty <= 0 or not d.get("customer"):
-        from ..db import bad
+    d = body()   # body hỏng -> {} -> báo lỗi 400 thay vì lỗi 500
+    try:
+        pid, qty = as_int(d.get("product_id"), "Sản phẩm"), as_int(d.get("qty") or 0, "Số lượng")
+    except ValueError as e:
+        return bad(str(e))
+    cus = text(d.get("customer"))
+    if qty <= 0 or not cus:
         return bad("Cần tên khách hàng và số lượng > 0")
     con = db()
     with con:
         lock(con)   # khóa trước khi đếm, để 2 đơn tạo cùng lúc không trùng số
         n = con.execute("SELECT COUNT(*) FROM sos").fetchone()[0] + 1
         con.execute("INSERT INTO sos (so_no,customer,product_id,qty,due) VALUES (?,?,?,?,?)",
-                    (f"SO-{n:03d}", d["customer"].strip(), int(d["product_id"]), qty, d.get("due") or day(1)))
+                    (f"SO-{n:03d}", cus, pid, qty, text(d.get("due")) or day(1)))
     con.close()
     return jsonify(ok=True)
 

@@ -1,9 +1,9 @@
 """Feature: SKU Master - danh mục sản phẩm."""
 import sqlite3
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
-from ..db import bad, db, lock, rows
+from ..db import as_int, bad, body, db, lock, rows, text
 
 bp = Blueprint("products", __name__)
 
@@ -21,17 +21,21 @@ def api_products():
 @bp.post("/api/products")
 def api_product_add():
     """Thêm sản phẩm mới; kiểm tra mã SKU, tên, loại kho và chặn trùng SKU."""
-    d = request.get_json()
-    if not d.get("sku") or not d.get("name"):
+    d = body()   # body hỏng -> {} -> báo lỗi 400 thay vì lỗi 500
+    sku, name = text(d.get("sku")), text(d.get("name"))
+    if not sku or not name:
         return bad("Cần nhập mã SKU và tên sản phẩm")
     if d.get("storage") not in ("dry", "chilled", "frozen", "cosmetics"):
         return bad("Loại kho không hợp lệ")
+    try:
+        price, safety = as_int(d.get("price") or 0, "Giá vốn"), as_int(d.get("safety") or 0, "Tồn an toàn")
+    except ValueError as e:
+        return bad(str(e))
     con = db()
     try:
         with con:
             con.execute("INSERT INTO products (sku,name,cat,unit,storage,price,safety,supplier) VALUES (?,?,?,?,?,?,?,?)",
-                        (d["sku"].strip(), d["name"].strip(), d.get("cat", ""), "thùng", d["storage"],
-                         int(d.get("price") or 0), int(d.get("safety") or 0), d.get("supplier", "")))
+                        (sku, name, text(d.get("cat")), "thùng", d["storage"], price, safety, text(d.get("supplier"))))
     except sqlite3.IntegrityError:
         return bad("Mã SKU đã tồn tại")
     finally:

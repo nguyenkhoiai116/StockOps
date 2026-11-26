@@ -2,10 +2,10 @@
 import csv
 import io
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify
 
 from ..core import do_adjust, run
-from ..db import bad, db, day, rows
+from ..db import as_int, bad, body, db, day, rows, text
 
 bp = Blueprint("inventory", __name__)
 
@@ -25,13 +25,12 @@ def api_inv():
 @bp.post("/api/inventory/<int:bid>/adjust")
 def api_adjust(bid):
     """Điều chỉnh tồn (kiểm kê lệch, hàng vỡ, hủy lô). delta âm = giảm."""
-    d = request.get_json(silent=True)
-    d = d if isinstance(d, dict) else {}   # body hỏng hoặc không phải {...} -> báo lỗi rõ thay vì lỗi 500
+    d = body()   # body hỏng -> {} -> báo lỗi 400 thay vì lỗi 500
     try:
-        delta = int(d.get("delta"))
-    except (TypeError, ValueError):
+        delta = as_int(d.get("delta"), "Số điều chỉnh")
+    except ValueError:
         return bad("Số điều chỉnh không hợp lệ")
-    return run(do_adjust, bid, delta, d.get("note") or "Điều chỉnh tồn")   # luật nằm ở core.do_adjust
+    return run(do_adjust, bid, delta, text(d.get("note")) or "Điều chỉnh tồn")   # luật nằm ở core.do_adjust
 
 
 @bp.get("/api/export/inventory.csv")

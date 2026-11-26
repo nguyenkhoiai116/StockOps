@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 from flask import Blueprint, g, jsonify, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from ..db import bad, db
+from ..db import bad, body, db
 from ..roles import ANY, PERMS, PUBLIC, ROLES, perm_of
 from ..users import MIN, set_password
 
@@ -67,11 +67,6 @@ def info(u):
     """Thông tin gửi cho giao diện: tên, role và danh sách quyền (để ẩn nút)."""
     return u and {"username": u["username"], "name": u["name"], "role": u["role"], "role_name": ROLES[u["role"]],
                   "perms": [p for p, x in PERMS.items() if u["role"] in x[1]]}
-
-
-def body():
-    d = request.get_json(silent=True)
-    return d if isinstance(d, dict) else {}
 
 
 def recent(k, now):
