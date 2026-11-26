@@ -102,8 +102,13 @@ def do_ship(con, so_id, plate):
         raise ValueError("Chưa chọn xe")
     if so["storage"] in ("chilled", "frozen") and v["kind"] != "cold":
         raise ValueError("Cảnh báo xếp hàng: hàng mát/đông lạnh phải đi xe lạnh")
-    for pk in rows(con, """SELECT p.*, b.batch_no FROM picks p JOIN batches b ON b.id=p.batch_id
-                           WHERE so_id=? AND p.released=0""", (so_id,)):   # bỏ các lần soạn đã trả lại
+    pks = rows(con, """SELECT p.*, b.batch_no, b.exp FROM picks p JOIN batches b ON b.id=p.batch_id
+                       WHERE so_id=? AND p.released=0""", (so_id,))   # bỏ các lần soạn đã trả lại
+    # Lô có thể hết hạn trong lúc đơn nằm chờ xuất (soạn hôm qua, xuất hôm nay) -> chặn, bắt soạn lại theo FEFO
+    old = [pk["batch_no"] for pk in pks if pk["exp"] < day()]
+    if old:
+        raise ValueError(f"Lô {', '.join(old)} đã hết hạn sau khi soạn. Bấm 'Soạn lại' để chọn lô còn hạn theo FEFO")
+    for pk in pks:
         con.execute("UPDATE batches SET qty=qty-?, reserved=reserved-? WHERE id=?", (pk["qty"], pk["qty"], pk["batch_id"]))
         log(con, "OUT", so["product_id"], pk["batch_no"], -pk["qty"], f"Xuất cho {so['so_no']}")
     con.execute("UPDATE sos SET status='shipping', plate=? WHERE id=?", (plate, so_id))

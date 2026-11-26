@@ -411,3 +411,29 @@ class CancelTest(Base):
         self.assertEqual(c.post(f"/api/orders/{sid}/unpick").status_code, 200)
         self.assertEqual(c.post(f"/api/orders/{sid}/cancel").status_code, 200)
         self.assertEqual(c.post(f"/api/orders/{sid}/cancel").status_code, 400)   # hủy 2 lần
+
+
+class ShipExpiredTest(Base):
+    def test_lo_het_han_sau_khi_soan_khong_xuat_duoc(self):
+        pid = self.product()
+        bid = self.batch(pid, "XB", 10, 50, bin=50)
+        self.batch(pid, "XA", 60, 50, bin=51)
+        sid = self.order(pid, 30)
+        self.go(core.do_pick, sid)
+        with self.con:   # giả lập thời gian trôi: lô XB hết hạn trước khi kịp xuất
+            self.con.execute("UPDATE batches SET exp=? WHERE id=?", (dbm.day(-1), bid))
+        with self.assertRaisesRegex(ValueError, "XB"):
+            self.go(core.do_ship, sid, DRY_CAR)
+        self.assertEqual(self.one("SELECT qty, reserved FROM batches WHERE id=?", (bid,)), (50, 30))   # chưa trừ gì
+        self.go(core.do_unpick, sid)
+        self.go(core.do_pick, sid)
+        self.assertEqual(self.picks(sid)[-1], ("XA", 30))   # soạn lại lấy lô còn hạn
+        self.go(core.do_ship, sid, DRY_CAR)
+        self.assertEqual(self.one("SELECT status FROM sos WHERE id=?", (sid,)), ("shipping",))
+
+    def test_lo_het_han_dung_hom_nay_van_xuat_duoc(self):
+        pid = self.product()
+        self.batch(pid, "XT", 0, 50, bin=50)   # hạn dùng = hôm nay: còn dùng được hết ngày
+        sid = self.order(pid, 10)
+        self.go(core.do_pick, sid)
+        self.go(core.do_ship, sid, DRY_CAR)
