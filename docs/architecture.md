@@ -332,11 +332,11 @@ StockOps/
 - **Tradeoff:** thêm Node.js, npm và bước build; có 2 kiểu frontend cùng lúc; dev phải chạy 2 tiến trình (:3000 và :5000). Bản dùng thật vẫn chỉ cần Flask vì `web/` được xuất ra file tĩnh.
 - **Revisit when:** ≥ 5 trên 9 màn hình nằm ở `web/` (chuyển nốt), hoặc sau 2 trang mà không nhanh hơn JS thuần (dừng).
 
-### ADR-012: Kho 3D cơ bản bằng Three.js trong `static/`
-- **Choice:** Three.js 0.180.0 qua import map (CDN), gói trong `static/js/wh3d.js`, chỉ tải khi mở chế độ 3D; không tải được thì về sơ đồ 2D.
-- **Why:** 48 ô, không cần bước build; sau này nạp được mô hình GLB bằng cách thay `makeRack()` và `makeLoad()`.
-- **Tradeoff:** cần mạng ở lần tải đầu. Cách xếp 2 kệ × 2 tầng × 3 ô là quy ước tạm; màu mức đầy chỉ tính theo khu vì database chưa có sức chứa từng ô.
-- **Revisit when:** có mô hình 3D cụ thể hoặc sơ đồ kệ thật (thêm migration cho kệ, tầng, sức chứa ô); hoặc phải chạy không có Internet (tải Three.js về `static/vendor/`).
+### ADR-012: Kho 3D mặt bằng chữ U bằng Three.js trong `static/`
+- **Choice:** mặt bằng chữ U với kệ thật theo khu. Migration `003_racks.sql` thêm `racks, bays, levels` vào `zones`, tổng 204 ô (DRY 4×6×4=96, COS 3×5×4=60, CHL 2×4×3=24, FRZ 2×4×3=24), thay `BINS = 12` cũ. `/api/layout` trả `bins` (số ô) và `items` (lô đang có hàng) theo khu, cùng `flow` lọc theo quyền (đơn nhập, đơn chờ lấy/đã lấy/đang xuất, đội xe, hàng cách ly). Kệ và hàng vẽ bằng `InstancedMesh`. Three.js 0.180.0 qua import map (CDN), gói trong `static/js/wh3d.js`, chỉ tải khi mở chế độ 3D; không tải được thì về sơ đồ 2D.
+- **Why:** bố cục khớp mặt bằng kho thật; số ô lấy từ database nên không còn quy ước tạm; không cần bước build; sau này nạp được mô hình GLB bằng cách thay `makeRack()` và `makeLoad()`.
+- **Tradeoff:** cần mạng ở lần tải đầu. 1 lô = 1 ô, ô không có sức chứa riêng nên màu mức đầy chỉ tính theo khu. Xe được gán vào cửa N1–N4/X1–X4 theo thứ tự hiển thị, không lưu trong database; số cửa chỉ là minh họa.
+- **Revisit when:** cần quản lý theo pallet, lưu sức chứa hoặc số cửa thật (thêm migration); hoặc phải chạy không có Internet (tải Three.js về `static/vendor/`).
 
 ### ADR-013: 5 role cố định, quyền khai báo trong `wms/roles.py`
 - **Choice:** bảng `users` (mỗi người 1 role: admin, inbound, storage, picking, shipping); quyền khai báo trong code, không lưu database. Chi tiết: `docs/roles.md`.
@@ -415,6 +415,7 @@ Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
 | 2026-11-25 | Bố cục kiểu SupplySight, kho 3D cơ bản | ADR-012; `/api/dashboard?days=`, `items`; `core.stock_status()`; `chart.js`, `wh3d.js` |
 | 2026-11-25 | Dữ liệu user và role | ADR-013; `migrate.py`, `001_base.sql`, `002_users.sql`, `roles.py`, `docs/roles.md` |
 | 2026-11-25 | Đăng nhập và chặn quyền | ADR-014; `features/auth.py`, `users.py`, `tests/test_auth.py` |
+| 2026-11-26 | Kho 3D theo mặt bằng chữ U | ADR-012; migration 003; `/api/layout` có flow |
 
 ---
 To update, run `/planfirst` again.
