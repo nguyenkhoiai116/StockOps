@@ -12,28 +12,33 @@ const WALL = 1.2, WT = 0.3;                             // tường cắt thấp
 const BG = "#eef1f6", PAD = "#e1e6ee", PICK = "#c3d6fa";   // nền cảnh, sàn khu chứa, sàn khu đang chọn
 const FADE = "#e3e7ed", STEEL = "#8f9bad", WOOD = "#b8b4ac";   // khối đã mờ (gần màu nền), kệ, pallet
 const LINE = "#f8f9fb", ASPH = "#d9dee6";                       // vạch sơn, mặt đường / bãi
-const TXT = 0.0003;   // cỡ nhãn khu trên màn hình (phần chiều cao khung cho mỗi điểm ảnh canvas)
+// Biển chữ (nhãn khu, số cửa, cổng) đo bằng mét. Cao 1 dòng = min(khoảng cách camera × LK, LH):
+// lại gần thì chữ giữ cỡ gần như cố định trên màn hình, ra xa thì dừng ở LH để biển không tràn khỏi khu.
+// Gần hơn NEAR mét thì biển hiện thêm dòng chi tiết (tên đầy đủ, số liệu).
+const LH = 3.4, LK = 0.025, NEAR = 60;
+const SANS = '"IBM Plex Sans", "Segoe UI", sans-serif', MONO = '"IBM Plex Mono", Consolas, monospace';
 
 // SITE: toạ độ các khu (ước lượng từ ảnh). r: [x0, x1, z0, z1]. code: khu chứa hàng gắn dữ liệu.
-// at: chỗ đặt nhãn [x, z] (so le để nhãn không chồng nhau khi nhìn toàn kho).
+// t: tên ngắn hiện khi nhìn xa; long / sub: dòng chi tiết khi lại gần (khu chứa ghi thêm số liệu).
+// at: chân biển [x, z, y]; đặt trên phần sàn trống, không đè lên kệ. w: bề rộng biển tối đa (m), giữ biển các khu không chồng nhau.
 export const SITE = {
   land: [-70, 70, -32, 54],    // khuôn viên (nền ngoài cùng)
   fence: [-68, 68, -30, 50],   // hàng rào
   hall: [-45, 45, -25, 25],    // nhà kho
   view: [-68, 68, -27, 53],    // vùng camera canh khi xem toàn kho
   zones: [
-    { no: "2", name: "Kho mát", code: "CHL", r: [-45, -32.5, -25, -5], at: [-38.75, -7], pad: "#dde6f1" },
-    { no: "2", name: "Kho đông", code: "FRZ", r: [-32.5, -20, -25, -5], at: [-26.25, -23], pad: "#dde6f1" },
-    { no: "3", name: "Hàng khô (TP & đồ uống)", code: "DRY", r: [-18, 12, -25, -5], at: [-8, -6.3] },
-    { no: "4", name: "Hàng khô (hoá mỹ phẩm)", code: "COS", r: [14, 45, -25, -8], at: [32, -9.5] },
-    { no: "7", name: "Đậu & sạc xe nâng", r: [34, 45, -8, 2], at: [39.5, 0.5], pad: "#ebe7da" },
-    { no: "8", name: "Hàng lỗi / trả về", sub: "Quarantine & văn phòng", r: [-45, -30, -5, 25], at: [-37.5, 3], pad: "#f0e4e4" },
-    { no: "1B", name: "Tập kết chờ lên kệ", sub: "& đỗ xe nâng nhập hàng", r: [-30, -18, -5, 25], at: [-24, 11], pad: "#e6e9ef" },
-    { no: "5", name: "Soạn hàng lẻ", sub: "& đóng gói", r: [-16, 12, -3, 25], at: [1, 21], pad: "#e6e9ef" },
-    { no: "6", name: "Xuất hàng", sub: "& tập kết đơn", r: [14, 45, 2, 25], at: [33, 23], pad: "#e6e9ef" },
-    { no: "1A", name: "Kiểm đếm", sub: "& đối chiếu số lượng", r: [-30, -8, 25, 33], at: [-19, 29.5], pad: "#e4e9f1" },
-    { no: "9", name: "Bãi chờ & đậu xe", sub: "xe tải / container", r: [-5, 45, 27, 45], at: [12, 31], pad: ASPH },
-    { no: "10", name: "Bãi đỗ xe nhân viên", sub: "xe máy & ô tô", r: [-62, -32, 27, 45], at: [-47, 36.5], pad: ASPH },
+    { no: "2", t: "Mát", long: "Kho mát", code: "CHL", r: [-45, -32.5, -25, -5], at: [-38.75, -4.3], w: 11, pad: "#dde6f1" },
+    { no: "2", t: "Đông", long: "Kho đông", code: "FRZ", r: [-32.5, -20, -25, -5], at: [-26.25, -4.3], w: 11, pad: "#dde6f1" },
+    { no: "3", t: "TP & đồ uống", long: "Hàng khô", code: "DRY", r: [-18, 12, -25, -5], at: [-6, -1.2], w: 22 },
+    { no: "4", t: "Hoá mỹ phẩm", long: "Hàng khô", code: "COS", r: [14, 45, -25, -8], at: [24, -5.2], w: 19 },
+    { no: "7", t: "Xe nâng", sub: "Đậu & sạc xe nâng", r: [34, 45, -8, 2], at: [38, 1.5], w: 15, pad: "#ebe7da" },
+    { no: "8", t: "Hàng lỗi", sub: "Trả về (Quarantine) & văn phòng", r: [-45, -30, -5, 25], at: [-37.5, 13.5], w: 13, pad: "#f0e4e4" },
+    { no: "1B", t: "Tập kết", sub: "Chờ lên kệ, đỗ xe nâng nhập hàng", r: [-30, -18, -5, 25], at: [-24, 15.5], w: 12, pad: "#e6e9ef" },
+    { no: "5", t: "Soạn hàng", sub: "Soạn hàng lẻ & đóng gói", r: [-16, 12, -3, 25], at: [2, 23.5], w: 18, pad: "#e6e9ef" },
+    { no: "6", t: "Xuất hàng", sub: "Xuất hàng & tập kết đơn", r: [14, 45, 2, 25], at: [29.5, 7.6], w: 18, pad: "#e6e9ef" },
+    { no: "1A", t: "Kiểm đếm", sub: "Kiểm đếm & đối chiếu số lượng", r: [-30, -8, 25, 33], at: [-19, 32.4], w: 18, pad: "#e4e9f1" },
+    { no: "9", t: "Bãi xe tải", sub: "Bãi chờ & đậu xe tải / container", r: [-5, 45, 27, 45], at: [5, 32], w: 20, pad: ASPH },
+    { no: "10", t: "Xe nhân viên", sub: "Bãi đỗ xe máy & ô tô nhân viên", r: [-62, -32, 27, 45], at: [-47, 37.5], w: 26, pad: ASPH },
   ],
   // Cửa trên tường trước (z = 25): N1–N4 nhập, X1–X4 xuất
   doors: [["N1", -27.25], ["N2", -21.75], ["N3", -16.25], ["N4", -10.75], ["X1", 21], ["X2", 27], ["X3", 33], ["X4", 39]],
@@ -79,20 +84,27 @@ const wallZ = (K, z0, z1, x, c, h = WALL) => K.box("wall", x, h / 2, (z0 + z1) /
 // Chữ vẽ lên canvas -> texture
 function tex(c) { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
 
-// Nhãn khu luôn quay về người xem, cỡ cố định trên màn hình. sub: dòng phụ; mono: dòng phụ là số liệu
-function label(text, sub, mono) {
+// Vẽ các dòng chữ lên canvas: dòng 1 đậm, dòng 2 nhỏ (mono: số liệu). dark: nền xám đậm chữ trắng (số cửa).
+// Trả về {map, a: rộng / cao, k: cao gấp mấy lần biển 1 dòng}
+function card(lines, { mono, dark } = {}) {
   const c = document.createElement("canvas"), x = c.getContext("2d");
-  const F = ['600 52px "IBM Plex Sans", "Segoe UI", sans-serif', mono ? '400 40px "IBM Plex Mono", Consolas, monospace' : '400 40px "IBM Plex Sans", "Segoe UI", sans-serif'];
-  const lines = sub ? [text, sub] : [text];
-  const w = Math.ceil(Math.max(...lines.map((t, i) => { x.font = F[i]; return x.measureText(t).width; }))) + 56, h = 24 + lines.length * 58;
+  const F = ["600 52px " + SANS, "400 40px " + (mono ? MONO : SANS)];
+  const w = Math.ceil(Math.max(...lines.map((t, i) => { x.font = F[i]; return x.measureText(t).width; }))) + 40, h = 18 + lines.length * 52;
   c.width = w; c.height = h;   // đổi cỡ canvas thì mất font, đặt lại bên dưới
-  x.fillStyle = "#ffffff"; x.strokeStyle = "#c9cfd8"; x.lineWidth = 4;
-  x.beginPath(); x.roundRect(2, 2, w - 4, h - 4, 16); x.fill(); x.stroke();
+  x.fillStyle = x.strokeStyle = dark ? "#5b6676" : "#ffffff"; x.lineWidth = 4;
+  if (!dark) x.strokeStyle = "#c9cfd8";
+  x.beginPath(); x.roundRect(2, 2, w - 4, h - 4, 14); x.fill(); x.stroke();
   x.textAlign = "center"; x.textBaseline = "middle";
-  lines.forEach((t, i) => { x.font = F[i]; x.fillStyle = i ? "#4d4d52" : "#171717"; x.fillText(t, w / 2, 42 + i * 58); });
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), depthTest: false, sizeAttenuation: false }));
-  s.scale.set(w * TXT, h * TXT, 1); s.renderOrder = 5;
-  return s;
+  lines.forEach((t, i) => { x.font = F[i]; x.fillStyle = dark ? "#ffffff" : i ? "#4d4d52" : "#171717"; x.fillText(t, w / 2, 37 + i * 52); });
+  return { map: tex(c), a: w / h, k: h / 70 };
+}
+
+// Biển đứng quay về người xem, chân đặt tại at = [x, z, y]. far: chữ khi nhìn xa; near: chữ khi lại gần (có thể không có).
+// Cỡ biển chỉnh mỗi lần vẽ (xem LH, LK), không bao giờ rộng quá w mét. Có kiểm độ sâu nên không đè lên kệ đứng trước nó.
+function sign(far, near, [x, z, y = 0.2], w) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: far.map }));
+  s.center.set(0.5, 0); s.position.set(x, y, z);
+  return { s, far, near, w };
 }
 
 // Chữ dãy kệ (A, B, C…) trong vòng tròn, cỡ theo mét
@@ -103,8 +115,8 @@ function tag(ch) {
   x.beginPath(); x.arc(64, 64, 56, 0, Math.PI * 2); x.fill(); x.stroke();
   x.fillStyle = "#171717"; x.font = '600 72px "IBM Plex Sans", "Segoe UI", sans-serif';
   x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(ch, 64, 68);
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), depthTest: false }));
-  s.scale.set(1.3, 1.3, 1); s.renderOrder = 4;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c) }));
+  s.scale.set(1.3, 1.3, 1);
   return s;
 }
 
@@ -358,19 +370,32 @@ export function mount(el, { zones, loads, flow }, onPick) {
   ring.visible = false;
   scene.add(ring);
 
-  // Nhãn đánh số các khu (khu chứa có thêm dòng số liệu), cổng và lối ra
+  // Biển đánh số các khu: xa chỉ "số · tên ngắn"; gần thêm dòng chi tiết (khu chứa: tên đầy đủ và số liệu)
+  const signs = [];
   for (const s of SITE.zones) {
-    const z = s.code && Z[s.code], t = label(`${s.no} · ${s.name}`, s.code ? z?.sub : s.sub, !!s.code);
-    t.position.set(s.at[0], 0.6, s.at[1]);
-    scene.add(t);
+    const z = s.code && Z[s.code], head = `${s.no} · ${s.t}`;
+    const more = s.code ? (z ? `${s.long} · ${z.sub}` : s.long) : s.sub;
+    signs.push(sign(card([head]), more ? card([head, more], { mono: !!z }) : null, s.at, s.w));
   }
-  for (const [name, x] of SITE.gates) { const t = label(name); t.position.set(x, 0.6, SITE.fence[3] + 2.5); scene.add(t); }
-  for (const [name, x] of SITE.exits) { const t = label(name); t.position.set(x - Math.sign(x) * 5, 0.6, SITE.fence[3] + 2.5); scene.add(t); }
+  // Số cửa trên tường trước, cổng vào và lối ra
+  for (const [no, x] of SITE.doors) signs.push(sign(card([no], { dark: true }), null, [x, SITE.hall[3] + 0.4, WALL + 0.1], 4.4));
+  for (const [name, x] of SITE.gates) signs.push(sign(card([name]), null, [x, SITE.fence[3] + 2.5], 22));
+  for (const [name, x] of SITE.exits) signs.push(sign(card([name]), null, [Math.sign(x) * 56, SITE.fence[3] + 2.5], 20));
+  scene.add(...signs.map((g) => g.s));
+  // Chỉnh cỡ và chữ của biển theo khoảng cách camera (gọi trước mỗi lần vẽ)
+  const fitSigns = () => {
+    for (const g of signs) {
+      const d = cam.position.distanceTo(g.s.position), v = g.near && d < NEAR ? g.near : g.far;
+      g.s.material.map = v.map;
+      const h = Math.min(Math.min(d * LK, LH) * v.k, g.w / v.a);
+      g.s.scale.set(h * v.a, h, 1);
+    }
+  };
 
   // ---------- Vẽ lại và camera ----------
   // Chỉ vẽ lại khi có thay đổi, đỡ tốn pin
   let raf = 0, dead = false, anim = 0;
-  const draw = () => { raf = 0; if (!dead) gl.render(scene, cam); };
+  const draw = () => { raf = 0; if (!dead) { fitSigns(); gl.render(scene, cam); } };
   const req = () => { if (!raf && !dead) raf = requestAnimationFrame(draw); };
   const ctl = new OrbitControls(cam, cv);
   ctl.maxPolarAngle = Math.PI * 0.47; ctl.minDistance = 4; ctl.maxDistance = 260;
@@ -484,6 +509,7 @@ export function mount(el, { zones, loads, flow }, onPick) {
         if (o.material) { o.material.map?.dispose(); o.material.dispose(); }
       });
       if (!n) { pallet.dispose(); cargo.dispose(); pallet.geometry.dispose(); cargo.geometry.dispose(); }
+      for (const g of signs) { g.far.map.dispose(); g.near?.map.dispose(); }   // biển có 2 texture, chỉ 1 cái đang gắn
       gl.dispose(); gl.forceContextLoss();
       cv.remove(); tip.remove();
     },
