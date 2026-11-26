@@ -575,3 +575,30 @@ class BinTest(Base):
         self.go(core.do_adjust, bid, -10, "nhầm")
         self.go(core.do_adjust, bid, 10, "sửa lại")
         self.assertEqual(self.one("SELECT qty FROM batches WHERE id=?", (bid,)), (10,))
+
+
+class DateTest(Base):
+    BAD = ["abc", "", "2026-13-01", "2026-02-30", "20991231", "2099-1-5", "2099/01/05", " ", "9999-99-99"]
+
+    def test_as_day(self):
+        self.assertEqual(dbm.as_day(" 2099-01-05 ", "Hạn"), "2099-01-05")
+        for s in self.BAD + [None, 20991231]:
+            with self.subTest(s=s), self.assertRaisesRegex(ValueError, "YYYY-MM-DD"):
+                dbm.as_day(s, "Hạn")
+
+    def test_nhan_hang_han_dung_sai_bao_400_va_khong_tao_lo(self):
+        c, pid = self.admin(), self.product()
+        with self.con:
+            po = self.con.execute("INSERT INTO pos (po_no,product_id,qty,eta) VALUES ('PO-TD',?,10,?)", (pid, dbm.day())).lastrowid
+        for s in self.BAD:
+            with self.subTest(exp=s):
+                r = c.post(f"/api/pos/{po}/receive", json={"batch_no": "XD", "exp": s, "qty": 10})
+                self.assertEqual(r.status_code, 400)
+        self.assertEqual(self.one("SELECT COUNT(*) FROM batches WHERE batch_no='XD'"), (0,))
+        self.assertEqual(c.post(f"/api/pos/{po}/receive", json={"batch_no": "XD", "exp": dbm.day(30), "qty": 10}).status_code, 200)
+
+    def test_ngay_po_va_han_giao_sai_bao_400(self):
+        c, pid = self.admin(), self.product()
+        self.assertEqual(c.post("/api/pos", json={"product_id": pid, "qty": 5, "eta": "mai"}).status_code, 400)
+        self.assertEqual(c.post("/api/orders", json={"customer": "K", "product_id": pid, "qty": 5, "due": "2099-1-5"}).status_code, 400)
+        self.assertEqual(c.post("/api/orders", json={"customer": "K", "product_id": pid, "qty": 5}).status_code, 200)   # bỏ trống = ngày mai

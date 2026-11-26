@@ -42,6 +42,20 @@ def day(n=0):
     return (date.today() + timedelta(days=n)).isoformat()
 
 
+def as_day(v, label):
+    """Kiểm chuỗi ngày dạng 'YYYY-MM-DD' và là ngày có thật; trả lại đúng chuỗi đó.
+    Bắt buộc vì mọi phép so sánh hạn dùng trong SQL là so sánh CHỮ: 'abc' > '2026-...' nên chữ rác
+    sẽ thành lô "còn hạn vĩnh viễn"; '2026-1-5' cũng xếp sai thứ tự FEFO."""
+    s = v.strip() if isinstance(v, str) else ""
+    try:
+        if len(s) != 10 or s[4] != "-" or s[7] != "-":
+            raise ValueError
+        date.fromisoformat(s)
+    except ValueError:
+        raise ValueError(f"{label} phải là ngày hợp lệ dạng YYYY-MM-DD") from None
+    return s
+
+
 def log(con, kind, pid, batch, qty, note, ts=None, bid=None):
     """Ghi 1 dòng vào sổ giao dịch kho. kind: IN (nhập) | OUT (xuất) | ADJ (điều chỉnh).
     bid: id của lô (batches.id) -> đối soát được tồn từng lô. Người thực hiện lấy từ phiên đăng nhập;

@@ -6,7 +6,7 @@ nhờ vậy quy tắc (vd không cho tồn âm) nằm 1 chỗ duy nhất.
 import sqlite3
 from datetime import date
 
-from .db import NEAR, bad, day, db, lock, log, rows
+from .db import NEAR, as_day, bad, day, db, lock, log, rows
 
 
 # ---------- Vị trí / sức chứa ----------
@@ -66,6 +66,7 @@ def do_receive(con, po_id, no, exp, ok, dmg, zone=None):
     ok: số thùng đạt (nhập kho), dmg: số thùng hỏng (ghi lên PO, không nhập kho)."""
     if ok <= 0 or dmg < 0 or not no:
         raise ValueError("Cần số lô và số lượng đạt > 0")
+    exp = as_day(exp, "Hạn dùng")
     if exp <= day():
         raise ValueError("Hạn dùng phải sau hôm nay (không nhận hàng hết hạn)")
     po = con.execute("SELECT o.*, p.storage FROM pos o JOIN products p ON p.id=o.product_id WHERE o.id=?",
@@ -245,6 +246,7 @@ def create_po(con, pid, qty, eta):
         raise ValueError("Số lượng phải lớn hơn 0")
     if not con.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone():
         raise ValueError("Sản phẩm không tồn tại")
+    eta = as_day(eta, "Ngày dự kiến đến")
     no = f"PO-{con.execute('SELECT COUNT(*) FROM pos').fetchone()[0] + 1:03d}"
     con.execute("INSERT INTO pos (po_no,product_id,qty,eta) VALUES (?,?,?,?)", (no, pid, qty, eta))
     return no
@@ -256,6 +258,7 @@ def create_so(con, pid, qty, customer, due):
         raise ValueError("Cần tên khách hàng và số lượng > 0")
     if not con.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone():
         raise ValueError("Sản phẩm không tồn tại")
+    due = as_day(due, "Hạn giao")
     no = f"SO-{con.execute('SELECT COUNT(*) FROM sos').fetchone()[0] + 1:03d}"
     con.execute("INSERT INTO sos (so_no,customer,product_id,qty,due) VALUES (?,?,?,?,?)", (no, customer, pid, qty, due))
     return no
