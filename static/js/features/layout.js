@@ -1,8 +1,9 @@
 // Feature: Sơ đồ kho 2D / 3D - khu, ô chứa, mức đầy, tìm vị trí hàng.
-import { api, loc, hbar, capCls, expTag, seg, segSet, params, plain, toast, num, esc, dmy, spot } from "../core.js";
+import { api, loc, hbar, capCls, expTag, seg, segSet, params, plain, toast, num, esc, dmy, spot, table } from "../core.js";
 
 let d = null;          // dữ liệu /api/layout
 let bins = {};         // key (vd DRY3) -> thông tin ô có hàng, kèm khu
+let fl = {};           // luồng hàng đã xếp cửa, đưa vào 3D (xem flows())
 let mode = "3d";       // 2d | 3d
 let color = "exp";     // exp: theo hạn dùng | fill: theo mức đầy của khu
 let zone = "", q = "", sel = null;   // khu đang xem, từ khóa tìm, ô đang chọn
@@ -39,6 +40,89 @@ const legend = () => (color === "exp"
      <span><i style="background:${EXP.warn[0]}"></i>Từ 80%</span><span><i style="background:${EXP.bad[0]}"></i>Từ 90%</span><span>Mức đầy tính theo khu</span>`)
   + `<span><i class="no"></i>Ô trống</span>`;
 
+// ---------- Luồng hàng: xe, đơn, hàng lỗi ----------
+const VK = { dry: "Xe thường", cold: "Xe lạnh" };   // loại xe (giống trang Giao hàng)
+const DOCKS = 4;                                     // số cửa mỗi phía (N1–N4, X1–X4)
+
+// Xếp xe vào cửa theo thứ tự: phần tử thứ i (từ 0) vào cửa prefix + (i + 1) khi i < 4, còn lại chờ cửa (đếm vào wait)
+export function docks(list, prefix) {
+  return { docks: list.slice(0, DOCKS).map((x, i) => ({ ...x, dock: prefix + (i + 1) })), wait: Math.max(0, list.length - DOCKS) };
+}
+
+// Các SO trên 1 xe, ghi gọn tối đa 3 số
+const sos = (l) => l.slice(0, 3).map((s) => s.so_no).join(", ") + (l.length > 3 ? ` +${l.length - 3}` : "");
+
+// Dựng flow cho 3D từ d.flow, chỉ gồm phần có dữ liệu (role không có quyền thì backend đã bỏ key đó)
+function flows() {
+  const f = d.flow || {}, out = {};
+  const wait = (x) => ({ ...x, tip: x.tip + ", chờ cửa" });
+  // Xe nhập: mỗi PO tới hạn là 1 xe
+  const ins = (f.inbound || []).map((p) => ({ key: "f:po:" + p.po_no, label: `${p.po_no} · ${p.sku}`, tip: `Xe nhập ${p.po_no}: ${p.sku}, ${num(p.qty)} thùng` }));
+  // Xe xuất: gộp đơn đang giao theo biển số, mỗi biển số là 1 xe
+  const ship = {};
+  for (const s of f.shipping || []) (ship[s.plate || "?"] ??= []).push(s);
+  const outs = Object.entries(ship).map(([p, l]) => ({ key: "f:truck:" + p, label: `${p} · ${sos(l)}`, tip: `Xe ${p}: ${sos(l)}` }));
+  const a = docks(ins, "N"), b = docks(outs, "X");
+  out.inDocks = a.docks.map((x) => ({ ...x, tip: `${x.tip}, cửa ${x.dock}` })); out.inWait = a.wait;
+  out.outDocks = b.docks.map((x) => ({ ...x, tip: `${x.tip}, cửa ${x.dock}` })); out.outWait = b.wait;
+  // Bãi 9: xe nhập chờ cửa, xe xuất chờ cửa, rồi xe rảnh (wh3d.js dựa vào thứ tự này để chọn chỗ đỗ và màu)
+  const idle = (f.fleet || []).filter((v) => !v.busy && !ship[v.plate])
+    .map((v) => ({ key: "f:truck:" + v.plate, label: v.plate, tip: `Xe ${v.plate} rảnh, ${v.driver}` }));
+  out.yard = [...ins.slice(DOCKS).map(wait), ...outs.slice(DOCKS).map(wait), ...idle];
+  if (f.topick?.length) out.topick = { key: "f:topick", n: f.topick.length, tip: `${num(f.topick.length)} đơn chờ soạn` };
+  if (f.staged?.length) out.staged = f.staged.map((s) => ({ key: "f:so:" + s.so_no, tip: `${s.so_no}, ${s.customer}: ${s.sku}, ${num(s.qty)} thùng (hàng vẫn tính ở ô kệ)` }));
+  const q = f.quarantine || {}, exp = q.expired || [], dmg = q.dmg || [];
+  const parts = [exp.length && `${num(exp.length)} lô hết hạn (đang ở kệ)`, dmg.length && `${num(dmg.reduce((t, x) => t + x.dmg, 0))} thùng hỏng khi nhận`].filter(Boolean);
+  if (parts.length) out.qa = { key: "f:qa", label: parts.join(" · "), pallets: dmg.length };
+  return out;
+}
+
+// Chỗ của xe trên sơ đồ (minh họa): "Cửa N1", "Chờ cửa, ở bãi 9" hoặc "Bãi 9"
+function place(k) {
+  const x = [...(fl.inDocks || []), ...(fl.outDocks || [])].find((x) => x.key === k);
+  if (x) return "Cửa " + x.dock;
+  const i = (fl.yard || []).findIndex((x) => x.key === k);
+  return i < 0 ? "Không rõ" : i < fl.inWait + fl.outWait ? "Chờ cửa, ở bãi 9" : "Bãi 9";
+}
+
+// Bảng đơn bán: SO, khách, SKU, số lượng, ngày giao (đơn đang giao không có ngày thì bỏ trống)
+const soTable = (l) => table(["Số SO", "Khách", "SKU", "SL*", "Ngày giao"], l.map((s) =>
+  `<tr><td>${esc(s.so_no)}</td><td>${esc(s.customer)}</td><td>${esc(s.sku)}</td><td class="r">${num(s.qty)}</td><td>${s.due ? dmy(s.due) : ""}</td></tr>`).join(""));
+const NOTE = `<p class="note">Số cửa và chỗ đỗ là minh họa, xe xếp theo thứ tự</p>`;
+
+// Khung chi tiết cho đối tượng luồng (key "f:…"); không tìm thấy thì trả ""
+function flowInfo(k) {
+  const f = d.flow || {};
+  if (k.startsWith("f:po:")) {
+    const p = (f.inbound || []).find((x) => "f:po:" + x.po_no === k);
+    return p ? `<h2>Xe nhập ${esc(p.po_no)}</h2><dl class="kv"><dt>Số PO</dt><dd>${esc(p.po_no)}</dd><dt>Sản phẩm</dt><dd><b>${esc(p.sku)}</b></dd>
+      <dt>Số lượng</dt><dd>${num(p.qty)} thùng</dd><dt>Ngày dự kiến</dt><dd>${dmy(p.eta)}</dd><dt>Chỗ đỗ</dt><dd>${esc(place(k))}</dd></dl>${NOTE}` : "";
+  }
+  if (k.startsWith("f:truck:")) {
+    const p = k.slice(8), v = (f.fleet || []).find((x) => x.plate === p), l = (f.shipping || []).filter((s) => (s.plate || "?") === p);
+    if (!v && !l.length) return "";
+    return `<h2>Xe ${esc(p)}</h2><dl class="kv"><dt>Biển số</dt><dd>${esc(p)}</dd><dt>Tài xế</dt><dd>${esc(v?.driver ?? "Không rõ")}</dd>
+      <dt>Loại xe</dt><dd>${esc(VK[v?.kind] ?? v?.kind ?? "Không rõ")}</dd><dt>Chỗ đỗ</dt><dd>${esc(place(k))}</dd></dl>
+      <h3>Đơn đang giao (${l.length})</h3>${l.length ? soTable(l) : `<p class="note">Xe đang rảnh</p>`}${NOTE}`;
+  }
+  if (k === "f:topick" && f.topick?.length) return `<h2>Bàn soạn hàng</h2><p class="note">${num(f.topick.length)} đơn chờ soạn</p>${soTable(f.topick)}`;
+  if (k.startsWith("f:so:")) {
+    const s = (f.staged || []).find((x) => "f:so:" + x.so_no === k);
+    return s ? `<h2>Pallet tập kết ${esc(s.so_no)}</h2><dl class="kv"><dt>Số SO</dt><dd>${esc(s.so_no)}</dd><dt>Khách</dt><dd>${esc(s.customer)}</dd>
+      <dt>Sản phẩm</dt><dd><b>${esc(s.sku)}</b></dd><dt>Số lượng</dt><dd>${num(s.qty)} thùng</dd><dt>Ngày giao</dt><dd>${dmy(s.due)}</dd></dl>
+      <p class="note">Hàng vẫn tính tồn ở ô kệ (đã giữ) cho tới khi xuất</p>` : "";
+  }
+  if (k === "f:qa" && fl.qa) {
+    const q = f.quarantine || {}, exp = q.expired || [], dmg = q.dmg;
+    return `<h2>Hàng lỗi & trả về</h2><p class="note">${esc(fl.qa.label)}</p>
+      <h3>Lô hết hạn (${exp.length})</h3>${table(["Vị trí", "Số lô", "SKU", "SL*", "Hạn dùng"], exp.map((b) =>
+        `<tr><td>${loc(b.zone, b.bin)}</td><td>${esc(b.batch_no)}</td><td>${esc(b.sku)}</td><td class="r">${num(b.qty)}</td><td>${dmy(b.exp)}</td></tr>`).join(""))}
+      ${dmg?.length ? `<h3>PO có hàng hỏng khi nhận (${dmg.length})</h3>${table(["Số PO", "SKU", "Hỏng*"], dmg.map((x) =>
+        `<tr><td>${esc(x.po_no)}</td><td>${esc(x.sku)}</td><td class="r">${num(x.dmg)} thùng</td></tr>`).join(""))}` : ""}`;
+  }
+  return "";
+}
+
 // Danh sách khu bên trái
 const zoneList = () => `<button type="button" aria-pressed="${!zone}" onclick="whZone('')"><span class="nm" style="margin:0">Toàn kho</span></button>`
   + d.zones.map((z) => `<button type="button" aria-pressed="${zone === z.code}" onclick="whZone('${z.code}')">
@@ -48,7 +132,8 @@ const zoneList = () => `<button type="button" aria-pressed="${!zone}" onclick="w
 
 // Khung chi tiết bên phải: ô đang chọn, hoặc kết quả tìm, hoặc hướng dẫn
 function info() {
-  const b = bins[sel], f = found();
+  const b = bins[sel], f = found(), x = sel?.startsWith("f:") && flowInfo(sel);
+  if (x) return x;
   if (b) return `<h2>${loc(b.zone.code, b.bin)} ${esc(b.zone.name)}</h2>
     <dl class="kv"><dt>Sản phẩm</dt><dd><b>${esc(b.sku)}</b> ${esc(b.name)}</dd><dt>Số lô</dt><dd>${esc(b.batch_no)}</dd>
     <dt>Hạn dùng</dt><dd>${dmy(b.exp)} ${expTag(b.exp, d.today, d.near)}</dd><dt>Thực có</dt><dd>${num(b.qty)} thùng</dd><dt>Đã giữ</dt><dd>${num(b.reserved)} thùng</dd>
@@ -106,7 +191,7 @@ async function stage() {
     view3d = mount(el, {
       zones: d.zones.map((z) => ({ code: z.code, name: z.name, sub: `${z.code}  ${num(z.pct)}%`, racks: z.racks, bays: z.bays, levels: z.levels })),
       loads: Object.entries(bins).map(([key, b]) => ({ key, zone: b.zone.code, bin: b.bin, tip: `${code(b)}, ${spot(b.bin, b.zone)}: ${b.sku}, ${num(b.qty)} thùng` })),
-      flow: {},   // luồng xe, đơn: chưa vẽ
+      flow: fl,   // xe ở cửa / bãi, đơn chờ soạn, pallet tập kết, hàng lỗi
     }, whPick);
     const out = view3d.outside ? `. ${view3d.outside} lô nằm ngoài sơ đồ` : "";
     el.insertAdjacentHTML("beforeend", `<div class="wh-note">Số cửa và chỗ đỗ là minh họa, xe xếp theo thứ tự. Kéo để xoay, cuộn để phóng to${out}</div>`);
@@ -145,6 +230,7 @@ async function render() {
   d = await api("/layout");
   bins = {};
   for (const z of d.zones) for (const b of z.items) bins[z.code + b.bin] = { ...b, zone: z };   // z.items: lô đang có hàng, z.bins: số ô
+  fl = flows();
   q = params().get("q") ?? "";
   zone = ""; sel = null;
   return `<div class="wh-bar"><h1>Sơ đồ kho</h1>

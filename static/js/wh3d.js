@@ -4,7 +4,7 @@
 // Kệ, hàng, đồ trang trí dùng InstancedMesh (mỗi loại 1 mesh) để giữ dưới 150 lượt vẽ mỗi khung hình.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { slot } from "./core.js";
+import { slot, num } from "./core.js";
 
 // ---------- Hằng số và mặt bằng ----------
 const BAY = 2.7, LEVEL = 1.5, DEEP = 1.1, AISLE = 3;   // ô kệ rộng, mỗi tầng cao, kệ sâu, lối đi giữa các dãy (mét)
@@ -16,6 +16,7 @@ const LINE = "#f8f9fb", ASPH = "#d9dee6";                       // vạch sơn, 
 // lại gần thì chữ giữ cỡ gần như cố định trên màn hình, ra xa thì dừng ở LH để biển không tràn khỏi khu.
 // Gần hơn NEAR mét thì biển hiện thêm dòng chi tiết (tên đầy đủ, số liệu).
 const LH = 3.4, LK = 0.025, NEAR = 60;
+const DOORY = 2.5;   // chân biển số cửa: cao hơn nóc xe đỗ ở cửa (3,3 m) để xe không che số cửa
 const SANS = '"IBM Plex Sans", "Segoe UI", sans-serif', MONO = '"IBM Plex Mono", Consolas, monospace';
 
 // SITE: toạ độ các khu (ước lượng từ ảnh). r: [x0, x1, z0, z1]. code: khu chứa hàng gắn dữ liệu.
@@ -36,7 +37,7 @@ export const SITE = {
     { no: "1B", t: "Tập kết", sub: "Chờ lên kệ, đỗ xe nâng nhập hàng", r: [-30, -18, -5, 25], at: [-24, 15.5], w: 12, pad: "#e6e9ef" },
     { no: "5", t: "Soạn hàng", sub: "Soạn hàng lẻ & đóng gói", r: [-16, 12, -3, 25], at: [2, 23.5], w: 18, pad: "#e6e9ef" },
     { no: "6", t: "Xuất hàng", sub: "Xuất hàng & tập kết đơn", r: [14, 45, 2, 25], at: [29.5, 7.6], w: 18, pad: "#e6e9ef" },
-    { no: "1A", t: "Kiểm đếm", sub: "Kiểm đếm & đối chiếu số lượng", r: [-30, -8, 25, 33], at: [-19, 32.4], w: 18, pad: "#e4e9f1" },
+    { no: "1A", t: "Kiểm đếm", sub: "Kiểm đếm & đối chiếu số lượng", r: [-30, -8, 25, 33], at: [-19, 36.4], w: 18, pad: "#e4e9f1" },
     { no: "9", t: "Bãi xe tải", sub: "Bãi chờ & đậu xe tải / container", r: [-5, 45, 27, 45], at: [5, 32], w: 20, pad: ASPH },
     { no: "10", t: "Xe nhân viên", sub: "Bãi đỗ xe máy & ô tô nhân viên", r: [-62, -32, 27, 45], at: [-47, 37.5], w: 26, pad: ASPH },
   ],
@@ -47,6 +48,8 @@ export const SITE = {
   road: [46, 49.6],                                                 // đường chạy ngang trước bãi (z0, z1)
   tables: [-12, -5, 2, 9].flatMap((x) => [[x, 3], [x, 10]]),        // bàn soạn ở khu 5
   lanes: { x0: 16, x1: 44, z0: 8, z1: 22, n: 8 },                   // làn tập kết ở khu 6
+  yard: [-1.75, 2.75, 7.25, 11.75, 16.25],                          // tâm các ô đỗ xe tải bãi 9 (trái -> phải), không chắn cửa X
+  qa: { board: [-34.5, 2], xs: [-43, -41, -39, -37], zs: [7.5, 5.5, 3.5, 1.5, -0.5] },   // khu 8: bảng số liệu, lưới pallet đỏ
 };
 
 // ---------- Hình khối và nhãn ----------
@@ -57,6 +60,8 @@ function kit() {
   return {
     // Đặt gốc cho các khối tiếp theo: vị trí (x, z) và góc xoay quanh trục đứng
     at(x = 0, z = 0, ry = 0) { o = new THREE.Matrix4().makeRotationY(ry).setPosition(x, 0, z); },
+    // Số khối đã thêm của 1 loại (để biết khối nào thuộc đối tượng nào)
+    n(kind) { return L[kind]?.length ?? 0; },
     // Thêm 1 khối: tâm (x, y, z) tính theo gốc, cỡ w × h × d, màu c. Trả về số thứ tự trong loại
     box(kind, x, y, z, w, h, d, c) {
       const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), Q, new THREE.Vector3(w, h, d)).premultiply(o);
@@ -100,9 +105,10 @@ function card(lines, { mono, dark } = {}) {
 }
 
 // Biển đứng quay về người xem, chân đặt tại at = [x, z, y]. far: chữ khi nhìn xa; near: chữ khi lại gần (có thể không có).
+// far = null: biển chỉ hiện khi lại gần (biển số xe), nhìn xa thì ẩn cho đỡ rối.
 // Cỡ biển chỉnh mỗi lần vẽ (xem LH, LK), không bao giờ rộng quá w mét. Có kiểm độ sâu nên không đè lên kệ đứng trước nó.
 function sign(far, near, [x, z, y = 0.2], w) {
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: far.map }));
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: (far || near).map }));
   s.center.set(0.5, 0); s.position.set(x, y, z);
   return { s, far, near, w };
 }
@@ -171,6 +177,80 @@ function stack(K, x, z, h) {
   K.box("prop", 0, 0.14 + h / 2, 0, 1.1, h, 0.9, "#d8c9a8");
 }
 
+// ---------- Luồng hàng (gộp vào các loại box / wheel của bộ gom riêng, dò chuột được) ----------
+// Màu thùng xe, đầu kéo: xe nhập (xanh, cùng tông chuỗi Nhập), xe xuất (xanh ngọc, chuỗi Xuất), xe rảnh (xám)
+const TRUCK = { in: ["#d6e0f5", "#8ea9e0"], out: ["#cfe9e5", "#7cc2b9"], idle: ["#e2e5ea", "#b3bac5"] };
+// Xe tải đầu kéo + thùng: đuôi thùng tại (x, z), thân dài 8,3 m kéo về -z khi ry = 0 (ry = π: lùi vào cửa, đầu quay ra sân)
+function truck(P, x, z, ry, [c1, c2]) {
+  P.at(x, z, ry);
+  P.box("box", 0, 2.05, -3, 2.4, 2.5, 6, c1);              // thùng
+  P.box("box", 0, 0.6, -4.15, 1, 0.3, 8.1, GREY);          // khung gầm
+  P.box("box", 0, 1.55, -7.25, 2.2, 2.3, 2.1, c2);         // đầu kéo
+  P.box("box", 0, 2.15, -8.32, 1.9, 0.75, 0.04, "#5b6676");   // kính lái
+  for (const dz of [-0.9, -2.1, -7.6]) for (const dx of [-1.05, 1.05]) P.box("wheel", dx, 0.45, dz, 0.35, 0.9, 0.9, TIRE);
+}
+// Pallet có hàng (tập kết xuất hoặc hàng lỗi), tâm tại (x, z)
+function load(P, x, z, c) {
+  P.at(x, z);
+  P.box("box", 0, 0.07, 0, 1.2, 0.14, 1.0, "#c8bfae");
+  P.box("box", 0, 0.62, 0, 1.1, 0.96, 0.9, c);
+}
+
+// Vẽ flow (xem mount) vào bộ gom P. mark(mục, vẽ): mọi khối vẽ trong lúc gọi vẽ() thuộc về mục đó (để dò chuột).
+// Trả về các biển chữ cần thêm (biển số xe, "+n chờ cửa", "+n", bảng khu 8)
+function flows(P, flow, mark) {
+  const out = [], door = Object.fromEntries(SITE.doors), dz = SITE.hall[3] + 1.5;   // đuôi xe sát ụ cửa
+  const more = (n, at, w) => out.push(sign(card(["+" + num(n)]), null, at, w));
+  // Biển số trên nóc thùng, chỉ hiện khi lại gần. c: tâm nóc thùng [x, z]
+  const plate = (x, c) => { if (x.label) out.push(sign(null, card([x.label]), [c[0], c[1], 3.4], 5.2)); };
+  // Xe ở cửa N1–N4 (nhập) và X1–X4 (xuất): lùi vào cửa, đầu quay ra sân
+  for (const [list, col] of [[flow.inDocks, TRUCK.in], [flow.outDocks, TRUCK.out]]) for (const x of list || []) {
+    const dx = door[x.dock];
+    if (dx === undefined) continue;
+    mark(x, () => truck(P, dx, dz, Math.PI, col));
+    plate(x, [dx, dz + 3]);
+  }
+  // Bãi 9: xe chờ cửa nhập đỗ từ trái; xe xuất chờ cửa rồi xe rảnh đỗ từ phải. yard xếp đúng thứ tự đó
+  const Y = SITE.yard, yz = 44.3, yard = flow.yard || [], inW = flow.inWait | 0, outW = flow.outWait | 0, first = {};
+  let l = 0, r = Y.length - 1, miss = 0;
+  yard.forEach((x, i) => {
+    const t = i < inW ? "in" : i < inW + outW ? "out" : "idle";
+    if (l > r) { miss++; return; }
+    const s = t === "in" ? l++ : r--;
+    first[t] ??= Y[s];
+    mark(x, () => truck(P, Y[s], yz, 0, TRUCK[t]));
+    plate(x, [Y[s], yz - 3]);
+  });
+  if (inW) out.push(sign(card([`+${num(inW)} chờ cửa`]), null, [first.in ?? Y[0], yz - 3, 5], 6));
+  if (outW) out.push(sign(card([`+${num(outW)} chờ cửa`]), null, [first.out ?? Y[Y.length - 1], yz - 3, 5], 6));
+  if (miss) more(miss, [(Y[0] + Y[Y.length - 1]) / 2, yz + 1.2], 4);   // bãi hết ô đỗ: ghi số xe không vẽ được
+  // Khu 5: mỗi đơn chờ soạn là 1 thùng trên bàn, 3 thùng mỗi bàn, tối đa 12 (bàn hàng trước trước)
+  const tp = flow.topick;
+  if (tp && tp.n > 0) {
+    const T = [...SITE.tables].sort((a, b) => b[1] - a[1] || a[0] - b[0]), k = Math.min(tp.n, 12);
+    mark(tp, () => { for (let i = 0; i < k; i++) { const [x, z] = T[Math.floor(i / 3)]; P.at(x, z); P.box("box", (i % 3 - 1) * 0.9, 1.16, 0, 0.6, 0.5, 0.5, "#d9bf8f"); } });
+    if (tp.n > 12) more(tp.n - 12, [T[3][0], T[3][1], 1.5], 2.4);
+  }
+  // Khu 6: mỗi đơn đã soạn là 1 pallet; rải lần lượt qua các làn, từ đầu làn gần cửa X
+  const st = flow.staged || [], { x0, x1, z1, n: ln } = SITE.lanes, lw = (x1 - x0) / ln, cap = ln * 8;
+  st.slice(0, cap).forEach((x, i) => mark(x, () => load(P, x0 + lw * ((i % ln) + 0.5), z1 - 1 - Math.floor(i / ln) * 1.6, "#cfe3d3")));
+  if (st.length > cap) more(st.length - cap, [x1 - lw / 2, z1 + 1.2], 3);
+  // Khu 8: bảng số liệu và mỗi PO có hàng hỏng là 1 pallet đỏ
+  const qa = flow.qa;
+  if (qa) {
+    const { board: [bx, bz], xs, zs } = SITE.qa, k = Math.min(qa.pallets | 0, xs.length * zs.length);
+    mark(qa, () => {
+      P.at(bx, bz);
+      P.box("box", 0, 1.8, 0, 3, 1.5, 0.08, "#f6eeee");
+      for (const dx of [-1.3, 1.3]) P.box("box", dx, 0.55, 0, 0.08, 1.1, 0.08, GREY);
+      for (let i = 0; i < k; i++) load(P, xs[i % xs.length], zs[Math.floor(i / xs.length)], "#e8a5a5");
+    });
+    out.push(sign(card(qa.label.split(" · ").slice(0, 2)), null, [bx, bz, 2.6], 9));
+    if (qa.pallets > k) more(qa.pallets - k, [xs[1], zs[0] + 1.6], 3);
+  }
+  return out;
+}
+
 // Dựng nền, tường, cửa, sân bãi, đường và đồ trang trí. Trả về {chỗ sàn của khu chứa: [số thứ tự, màu]}
 function site(K) {
   const pads = {}, [hx0, hx1, hz0, hz1] = SITE.hall, [fx0, fx1, fz0, fz1] = SITE.fence, [r0, r1] = SITE.road;
@@ -193,8 +273,11 @@ function site(K) {
   for (const z of [25.4, 32.6]) flat(K, "ground", [-29.6, -8.4, z - 0.06, z + 0.06], 0.05, LINE);
   for (let x = -4; x <= 44; x += 4.5) if (x < 27 || x > 33) flat(K, "ground", [x - 0.06, x + 0.06, 33, 44.5], 0.05, LINE);
   for (let x = -60.75; x <= -38; x += 3.5) flat(K, "ground", [x - 0.06, x + 0.06, 28.3, 33.8], 0.05, LINE);
-  // Ụ cửa ngoài tường trước
-  for (const [, x] of SITE.doors) flat(K, "ground", [x - 1.7, x + 1.7, hz1 + WT / 2, hz1 + 1.4], 0.05, "#a3acb9");
+  // Ụ cửa ngoài tường trước, cột biển số cửa trên đỉnh tường
+  for (const [, x] of SITE.doors) {
+    flat(K, "ground", [x - 1.7, x + 1.7, hz1 + WT / 2, hz1 + 1.4], 0.05, "#a3acb9");
+    K.box("prop", x, (WALL + DOORY) / 2, hz1 + 0.4, 0.1, DOORY - WALL, 0.1, GREY);
+  }
 
   // Tường bao nhà kho (cắt thấp)
   const W1 = "#c9d0da", W2 = "#d3deeb";
@@ -263,10 +346,13 @@ function site(K) {
 
 // ---------- Dựng cảnh ----------
 // zones: [{code, name, sub, racks, bays, levels}], loads: [{key, zone, bin, tip}].
-// flow: luồng hàng quanh kho (xe, đơn), phần này vẽ sau; giờ chỉ nhận, chưa dùng.
-// onPick(key | null) khi bấm vào hàng / chỗ trống. Trả về các hàm điều khiển và outside (số lô nằm ngoài sơ đồ).
-export function mount(el, { zones, loads, flow }, onPick) {
-  void flow;
+// flow (layout.js dựng, phần nào không có thì khu đó chỉ vẽ cảnh):
+//   {inDocks: [{dock: "N1", key, label, tip}], inWait, outDocks: [{dock: "X1", key, label, tip}], outWait,
+//    yard: [{key, label, tip}] (inWait xe nhập chờ cửa, rồi outWait xe xuất chờ cửa, rồi xe rảnh),
+//    topick?: {key, n, tip}, staged?: [{key, tip}], qa?: {key, label, pallets}}
+// onPick(key | null) khi bấm vào hàng, đối tượng luồng (key "f:…") hoặc chỗ trống.
+// Trả về các hàm điều khiển và outside (số lô nằm ngoài sơ đồ).
+export function mount(el, { zones, loads, flow = {} }, onPick) {
   const gl = new THREE.WebGLRenderer({ antialias: true });   // không có WebGL thì ném lỗi, layout.js sẽ về 2D
   gl.setPixelRatio(Math.min(devicePixelRatio, 2));
   gl.shadowMap.enabled = true;
@@ -283,7 +369,7 @@ export function mount(el, { zones, loads, flow }, onPick) {
   const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(38, 1, 1, 600);
   scene.background = new THREE.Color(BG);
   scene.add(new THREE.HemisphereLight("#ffffff", "#d5dbe5", 1.9));
-  // Nắng chiếu vào dải kệ phía sau; chỉ kệ và hàng đổ bóng
+  // Nắng chiếu vào dải kệ phía sau; chỉ kệ, hàng và khối luồng hàng đổ bóng
   const sun = new THREE.DirectionalLight("#ffffff", 1.1);
   sun.position.set(-25, 45, 15); sun.target.position.set(0, 0, -15); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -301,6 +387,18 @@ export function mount(el, { zones, loads, flow }, onPick) {
   };
   const deco = K.build(G, new THREE.MeshLambertMaterial());
   scene.add(...Object.values(deco));
+
+  // Luồng hàng: bộ gom riêng; own[loại][số thứ tự khối] = mục flow, để dò chuột ra đúng xe / đơn
+  const P = kit(), own = { box: [], wheel: [] };
+  const mark = (item, draw) => {
+    const a = { box: P.n("box"), wheel: P.n("wheel") };
+    draw();
+    for (const k in a) for (let i = a[k]; i < P.n(k); i++) own[k][i] = item;
+  };
+  const extra = flows(P, flow, mark), fm = P.build({ box: unit, wheel: G.wheel }, new THREE.MeshLambertMaterial());
+  const mine = new Map(Object.entries(fm).map(([k, im]) => [im, own[k]]));   // mesh luồng -> danh sách mục
+  if (fm.box) fm.box.castShadow = true;
+  scene.add(...Object.values(fm));
 
   // Cửa đánh số trên mặt ngoài tường trước
   for (const [no, x] of SITE.doors) {
@@ -371,14 +469,17 @@ export function mount(el, { zones, loads, flow }, onPick) {
   scene.add(ring);
 
   // Biển đánh số các khu: xa chỉ "số · tên ngắn"; gần thêm dòng chi tiết (khu chứa: tên đầy đủ và số liệu)
+  // Khu 5, 6 có số liệu luồng (role có quyền xem) thì dòng chi tiết ghi thêm số đơn
+  const live = { 5: flow.topick && `${num(flow.topick.n)} đơn chờ soạn`, 6: flow.staged && `${num(flow.staged.length)} đơn chờ xe` };
   const signs = [];
   for (const s of SITE.zones) {
-    const z = s.code && Z[s.code], head = `${s.no} · ${s.t}`;
-    const more = s.code ? (z ? `${s.long} · ${z.sub}` : s.long) : s.sub;
-    signs.push(sign(card([head]), more ? card([head, more], { mono: !!z }) : null, s.at, s.w));
+    const z = s.code && Z[s.code], head = `${s.no} · ${s.t}`, data = !s.code && live[s.no];
+    const more = s.code ? (z ? `${s.long} · ${z.sub}` : s.long) : data ? `${s.sub} · ${data}` : s.sub;
+    signs.push(sign(card([head]), more ? card([head, more], { mono: !!z || !!data }) : null, s.at, s.w));
   }
+  signs.push(...extra);
   // Số cửa trên tường trước, cổng vào và lối ra
-  for (const [no, x] of SITE.doors) signs.push(sign(card([no], { dark: true }), null, [x, SITE.hall[3] + 0.4, WALL + 0.1], 4.4));
+  for (const [no, x] of SITE.doors) signs.push(sign(card([no], { dark: true }), null, [x, SITE.hall[3] + 0.4, DOORY], 4.4));
   for (const [name, x] of SITE.gates) signs.push(sign(card([name]), null, [x, SITE.fence[3] + 2.5], 22));
   for (const [name, x] of SITE.exits) signs.push(sign(card([name]), null, [Math.sign(x) * 56, SITE.fence[3] + 2.5], 20));
   scene.add(...signs.map((g) => g.s));
@@ -386,6 +487,8 @@ export function mount(el, { zones, loads, flow }, onPick) {
   const fitSigns = () => {
     for (const g of signs) {
       const d = cam.position.distanceTo(g.s.position), v = g.near && d < NEAR ? g.near : g.far;
+      g.s.visible = !!v;
+      if (!v) continue;
       g.s.material.map = v.map;
       const h = Math.min(Math.min(d * LK, LH) * v.k, g.w / v.a);
       g.s.scale.set(h * v.a, h, 1);
@@ -442,14 +545,19 @@ export function mount(el, { zones, loads, flow }, onPick) {
   ro.observe(el);
 
   // ---------- Bấm và rê chuột ----------
-  // Tìm khối hàng dưới con trỏ (theo instanceId), bỏ qua khối đã mờ
-  const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+  // Tìm khối hàng hoặc đối tượng luồng gần nhất dưới con trỏ (theo instanceId), bỏ qua khối hàng đã mờ.
+  // Kết quả có dạng {key, tip}: lô trên kệ hoặc mục flow
+  const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), pick = [...(n ? [cargo] : []), ...mine.keys()];
   const hit = (e) => {
-    if (!n) return null;
+    if (!pick.length) return null;
     const r = cv.getBoundingClientRect();
     ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ptr, cam);
-    for (const h of ray.intersectObject(cargo, false)) if (!faded[h.instanceId]) return lots[h.instanceId][0];
+    for (const h of ray.intersectObjects(pick, false)) {
+      const list = mine.get(h.object);
+      if (list) { if (list[h.instanceId]) return list[h.instanceId]; }
+      else if (!faded[h.instanceId]) return lots[h.instanceId][0];
+    }
     return null;
   };
   let dx = 0, dy = 0;
@@ -463,7 +571,7 @@ export function mount(el, { zones, loads, flow }, onPick) {
     cv.style.cursor = l ? "pointer" : "grab";
     tip.hidden = !l;
     if (!l) return;
-    tip.textContent = l.tip;
+    tip.textContent = l.tip ?? l.label;   // khu 8 (qa) không có tip riêng, dùng chữ trên bảng
     tip.style.left = Math.min(e.clientX - r.left + 12, r.width - tip.offsetWidth - 8) + "px";
     tip.style.top = Math.max(8, e.clientY - r.top - 32) + "px";
   });
@@ -509,7 +617,7 @@ export function mount(el, { zones, loads, flow }, onPick) {
         if (o.material) { o.material.map?.dispose(); o.material.dispose(); }
       });
       if (!n) { pallet.dispose(); cargo.dispose(); pallet.geometry.dispose(); cargo.geometry.dispose(); }
-      for (const g of signs) { g.far.map.dispose(); g.near?.map.dispose(); }   // biển có 2 texture, chỉ 1 cái đang gắn
+      for (const g of signs) { g.far?.map.dispose(); g.near?.map.dispose(); }   // biển có 2 texture, chỉ 1 cái đang gắn
       gl.dispose(); gl.forceContextLoss();
       cv.remove(); tip.remove();
     },
