@@ -3,9 +3,10 @@
 Đây là "bộ não" của kho. Các feature chỉ gọi lại các hàm ở đây,
 nhờ vậy quy tắc (vd không cho tồn âm) nằm 1 chỗ duy nhất.
 """
+import sqlite3
 from datetime import date
 
-from .db import NEAR, bad, day, db, log, rows
+from .db import NEAR, bad, day, db, lock, log, rows
 
 
 # ---------- Vị trí / sức chứa ----------
@@ -145,9 +146,12 @@ def run(fn, *args):
     con = db()
     try:
         with con:              # with con = 1 transaction, lỗi thì rollback toàn bộ
+            lock(con)
             fn(con, *args)
     except ValueError as e:
         return bad(str(e))
+    except sqlite3.IntegrityError:   # DB tự chặn (vd tồn âm) -> báo dễ hiểu thay vì lỗi 500
+        return bad("Dữ liệu vừa thay đổi, hãy tải lại trang rồi thử lại", 409)
     finally:
         con.close()
     from flask import jsonify

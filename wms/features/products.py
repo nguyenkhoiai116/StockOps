@@ -3,7 +3,7 @@ import sqlite3
 
 from flask import Blueprint, jsonify, request
 
-from ..db import bad, db, rows
+from ..db import bad, db, lock, rows
 
 bp = Blueprint("products", __name__)
 
@@ -43,12 +43,16 @@ def api_product_add():
 def api_product_del(pid):
     """Xóa sản phẩm; từ chối nếu sản phẩm còn lô hàng, PO hoặc đơn bán."""
     con = db()
-    used = sum(con.execute(f"SELECT COUNT(*) FROM {t} WHERE product_id=?", (pid,)).fetchone()[0]
-               for t in ("batches", "pos", "sos"))
-    if used:
+    try:
+        with con:
+            lock(con)   # kiểm và xóa trong cùng 1 transaction: không ai kịp tạo PO/đơn cho SKU ở giữa
+            used = sum(con.execute(f"SELECT COUNT(*) FROM {t} WHERE product_id=?", (pid,)).fetchone()[0]
+                       for t in ("batches", "pos", "sos"))
+            if used:
+                raise ValueError("Không xóa được: sản phẩm đang có tồn kho hoặc đơn hàng")
+            con.execute("DELETE FROM products WHERE id=?", (pid,))
+    except ValueError as e:
+        return bad(str(e))
+    finally:
         con.close()
-        return bad("Không xóa được: sản phẩm đang có tồn kho hoặc đơn hàng")
-    with con:
-        con.execute("DELETE FROM products WHERE id=?", (pid,))
-    con.close()
     return jsonify(ok=True)

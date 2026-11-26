@@ -24,7 +24,7 @@ Full spec: `./docs/architecture.md` — read before adding any infrastructure.
 - `web/` MUST reuse the design tokens in `static/css/theme.css`; DO NOT create a second palette.
 - DO NOT put secrets in `NEXT_PUBLIC_*` variables. COMMIT `package-lock.json`; NEVER commit `node_modules/`, `.next/` or `out/`.
 - FOLLOW the per-feature layout: backend blueprint in `wms/features/<name>.py` registered in `wms/__init__.py`; frontend page either in `static/js/features/<name>.js` registered in `static/js/app.js` (vanilla), or in `web/app/<name>/page.tsx` (Next.js).
-- PUT all inventory business rules in `wms/core.py`. Every write MUST run inside a transaction via `core.run()` or `with con:`.
+- PUT all inventory business rules in `wms/core.py`. Every write MUST run inside a transaction via `core.run()` or `with con:`; a `with con:` block that writes MUST call `lock(con)` (`wms/db.py`) as its first statement, before any check it reads.
 - NEVER change schema in `seed.py`. ADD a new numbered file in `wms/migrations/` instead.
 - Roles and permissions MUST be defined only in `wms/roles.py`; every new `/api/*` route MUST be listed in `PERMS` there (`python -m unittest discover tests` checks this). NEVER commit passwords or password hashes for sample users.
 - Login and permission checks live in `guard()` (`wms/features/auth.py`), deny by default. Frontend `can()` only hides buttons; NEVER rely on it for security. Use `can()` for every new action button.

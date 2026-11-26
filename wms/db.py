@@ -22,6 +22,13 @@ def db():
     return con
 
 
+def lock(con):
+    """Gọi ngay đầu khối `with con:` có ghi. Giữ quyền ghi từ trước khi đọc để kiểm tra,
+    nên 2 request cùng lúc (vd bấm đúp) phải xếp hàng: request sau đọc được trạng thái mới.
+    Không có dòng này, Python chỉ mở transaction ở lệnh ghi đầu tiên -> 2 bên cùng đọc số cũ."""
+    con.execute("BEGIN IMMEDIATE")
+
+
 def rows(con, sql, args=()):
     """Chạy câu SELECT và trả về danh sách dict (dễ đổi sang JSON)."""
     return [dict(r) for r in con.execute(sql, args)]

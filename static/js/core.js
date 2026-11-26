@@ -97,10 +97,13 @@ export function form(title, fields, onOk, okText = "Lưu") {
     <div class="acts"><button type="button" class="btn ghost" onclick="closeModal()">Hủy</button><button class="btn">${okText}</button></div></form>`);
   document.getElementById("f").onsubmit = async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector("button:not([type=button])");
+    if (btn.disabled) return;   // đang gửi: bỏ qua lần bấm / Enter thứ hai
+    btn.disabled = true;
     try {
       await onOk(Object.fromEntries(new FormData(e.target)));
       closeModal(); toast("Đã lưu"); route();
-    } catch (x) { toast(x.message, false); }
+    } catch (x) { toast(x.message, false); } finally { btn.disabled = false; }
   };
 }
 
@@ -111,9 +114,13 @@ export function confirmBox(text, fn) {
   document.getElementById("yes").onclick = () => { closeModal(); run(fn, "Đã thực hiện"); };
 }
 
-// Chạy 1 thao tác rồi vẽ lại trang; lỗi thì hiện thông báo đỏ
+// Chạy 1 thao tác rồi vẽ lại trang; lỗi thì hiện thông báo đỏ.
+// Đang chờ thao tác trước thì bỏ qua (chống bấm đúp). Chặn thật nằm ở backend (lock() trong wms/db.py).
+let busy = false;
 export async function run(fn, msg) {
-  try { await fn(); toast(msg); route(); } catch (x) { toast(x.message, false); }
+  if (busy) return;
+  busy = true;
+  try { await fn(); toast(msg); route(); } catch (x) { toast(x.message, false); } finally { busy = false; }
 }
 
 // ---------- Mảnh giao diện dùng lại ----------

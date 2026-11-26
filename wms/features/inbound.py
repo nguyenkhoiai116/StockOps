@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request
 
 from ..core import free_bin, zone_used
-from ..db import bad, day, db, log, rows
+from ..db import bad, day, db, lock, log, rows
 
 bp = Blueprint("inbound", __name__)
 
@@ -26,6 +26,7 @@ def api_po_add():
         return bad("Số lượng phải lớn hơn 0")
     con = db()
     with con:
+        lock(con)   # khóa trước khi đếm, để 2 PO tạo cùng lúc không trùng số
         n = con.execute("SELECT COUNT(*) FROM pos").fetchone()[0] + 1
         con.execute("INSERT INTO pos (po_no,product_id,qty,eta) VALUES (?,?,?,?)",
                     (f"PO-{n:03d}", int(d["product_id"]), qty, d.get("eta") or day(1)))
@@ -46,6 +47,7 @@ def api_po_receive(po_id):
     con = db()
     try:
         with con:
+            lock(con)   # khóa trước khi kiểm PO, để bấm đúp không nhận 1 PO 2 lần
             po = con.execute("SELECT o.*, p.storage FROM pos o JOIN products p ON p.id=o.product_id WHERE o.id=?",
                              (po_id,)).fetchone()
             if not po or po["status"] != "pending":

@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request
 
 from ..core import do_pick, run
-from ..db import db, day, rows
+from ..db import db, day, lock, rows
 
 bp = Blueprint("picking", __name__)
 
@@ -31,6 +31,7 @@ def api_order_add():
         return bad("Cần tên khách hàng và số lượng > 0")
     con = db()
     with con:
+        lock(con)   # khóa trước khi đếm, để 2 đơn tạo cùng lúc không trùng số
         n = con.execute("SELECT COUNT(*) FROM sos").fetchone()[0] + 1
         con.execute("INSERT INTO sos (so_no,customer,product_id,qty,due) VALUES (?,?,?,?,?)",
                     (f"SO-{n:03d}", d["customer"].strip(), int(d["product_id"]), qty, d.get("due") or day(1)))

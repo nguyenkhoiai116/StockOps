@@ -26,25 +26,26 @@ StockOps hiện là một **monolith Flask + SQLite + HTML/JS thuần (ES module
 
 ## Alignment Score
 
+Cập nhật 2026-11-26. Chi tiết và bằng chứng: `docs/review-2026-11-26.md`.
+
 ```
 📊 Architecture Alignment — validate moment
 
   Stack hiện tại vs lý tưởng cho validate:
 
   ✅ Flask monolith + blueprints     — đúng tầm, dễ thêm feature
-  ✅ SQLite (wms.db)                 — đủ cho 1 dev, < 10 user, vài triệu dòng
-  ✅ HTML/CSS/JS ES modules          — không build step, dễ hiểu
-  ✅ Nghiệp vụ gom ở core.py         — agent tool sẽ gọi lại đúng chỗ này
-  ✅ Transaction qua run() + CHECK   — tồn âm bị chặn ở cả DB lẫn code
-  ✅ Chat chưa gọi API từ frontend   — đúng: key không lộ ra trình duyệt
-  ⚠️  SQLite journal_mode=delete     — sẽ "database is locked" khi simulator ghi liên tục
-  ⚠️  Không có migration             — bảng `icons` tồn tại trong wms.db nhưng không có trong code
-  ⚠️  debug=True + host=0.0.0.0      — debugger Werkzeug mở trên Wi-Fi chung
-  ⚠️  requirements không pin version, không có .env, không có test
-  ❌ Chưa có bảng time-series         — zones.temp là 1 con số tĩnh, không có lịch sử
-  ❌ Chưa có dữ liệu lịch sử đủ train — 30 txs / 7 ngày
+  ✅ SQLite WAL + timeout 5s         — đã bật trong db()
+  ✅ Migration 001–003 (user_version) — đã có, có test
+  ✅ HTML/CSS/JS ES modules + 3D lười — không build step
+  ✅ guard() mặc định chặn + PERMS   — test kiểm mọi route đã khai quyền
+  ✅ CHECK ở DB + transaction        — tồn âm bị chặn ở cả DB lẫn code
+  ✅ LLM chỉ qua llm.py, key ở backend; requirements đã pin; debug tắt mặc định
+  ✅ Khối ghi khóa từ đầu (lock)      — bấm đúp không còn giữ hàng / nhận PO 2 lần (ADR-015)
+  ⚠️  Nghiệp vụ còn ở 5 file feature  — nhận PO, điều chỉnh, giao hàng, % khu, gợi ý đặt hàng
+  ❌ Chưa có bảng time-series         — zones.temp là 1 con số tĩnh (Phase 1)
+  ❌ Chưa có dữ liệu lịch sử đủ train — chờ simulator (Phase 2–3)
 
-  Alignment: ~75% — KHÔNG có complexity thừa; thiếu nền móng cho phase AI
+  Alignment: ~90% — KHÔNG có complexity thừa; còn gom nghiệp vụ vào core.py trước Phase 5
 ```
 
 ## Architecture Diagram (ASCII)
@@ -350,6 +351,12 @@ StockOps/
 - **Tradeoff:** bộ đếm sai mật khẩu nằm trong bộ nhớ (mất khi chạy lại, mỗi worker gunicorn đếm riêng). Yêu cầu ghi có `Origin` khác host bị chặn.
 - **Revisit when:** làm `sims/` (store_sim gọi `/api/orders` sẽ bị 401, cần khóa riêng như `X-Ingest-Key`); chạy `web/` ở :3000 (cần cho phép Origin đó); deploy Internet (bật `COOKIE_SECURE=1`, tắt `debug`).
 
+### ADR-015: Khối ghi khóa database ngay từ đầu (`BEGIN IMMEDIATE`)
+- **Choice:** `lock(con)` trong `wms/db.py` chạy `BEGIN IMMEDIATE`; `core.run()` và mọi khối `with con:` có ghi gọi nó trước khi đọc để kiểm tra. `run()` bắt thêm `sqlite3.IntegrityError` và trả 409. Migration `004` đặt `UNIQUE` cho `po_no`, `so_no`. Frontend bỏ qua lần bấm thứ hai khi đang gửi.
+- **Why:** Python `sqlite3` chỉ mở transaction ở lệnh ghi đầu tiên, nên 2 request cùng đọc trạng thái cũ. Đã chạy thử: soạn 2 lần cùng lúc 1 đơn 10 thùng thì giữ 20 thùng (`tests/test_race.py`). Simulator ở Phase 2–3 ghi liên tục sẽ làm việc này xảy ra thường xuyên.
+- **Tradeoff:** các lệnh ghi phải xếp hàng (mỗi lệnh vài ms, `timeout=5` giây); quên gọi `lock()` ở khối ghi mới thì lỗi quay lại (đã ghi vào Agent Rules).
+- **Revisit when:** chuyển PostgreSQL (dùng `SELECT ... FOR UPDATE` hoặc mức cô lập của Postgres).
+
 ## Lộ trình triển khai (các bước)
 
 Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
@@ -389,7 +396,7 @@ Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
 - `web/` MUST reuse the design tokens in `static/css/theme.css`; DO NOT create a second palette.
 - DO NOT put secrets in `NEXT_PUBLIC_*` variables. COMMIT `package-lock.json`; NEVER commit `node_modules/`, `.next/` or `out/`.
 - FOLLOW the per-feature layout: backend blueprint in `wms/features/<name>.py` registered in `wms/__init__.py`; frontend page either in `static/js/features/<name>.js` registered in `static/js/app.js` (vanilla), or in `web/app/<name>/page.tsx` (Next.js).
-- PUT all inventory business rules in `wms/core.py`. Every write MUST run inside a transaction via `core.run()` or `with con:`.
+- PUT all inventory business rules in `wms/core.py`. Every write MUST run inside a transaction via `core.run()` or `with con:`; a `with con:` block that writes MUST call `lock(con)` (`wms/db.py`) as its first statement, before any check it reads.
 - NEVER change schema in `seed.py`. ADD a new numbered file in `wms/migrations/` instead.
 - Roles and permissions MUST be defined only in `wms/roles.py`; every new `/api/*` route MUST be listed in `PERMS` there (`python -m unittest discover tests` checks this). NEVER commit passwords or password hashes for sample users.
 - Login and permission checks live in `guard()` (`wms/features/auth.py`), deny by default. Frontend `can()` only hides buttons; NEVER rely on it for security. Use `can()` for every new action button.
@@ -416,6 +423,8 @@ Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
 | 2026-11-25 | Dữ liệu user và role | ADR-013; `migrate.py`, `001_base.sql`, `002_users.sql`, `roles.py`, `docs/roles.md` |
 | 2026-11-25 | Đăng nhập và chặn quyền | ADR-014; `features/auth.py`, `users.py`, `tests/test_auth.py` |
 | 2026-11-26 | Kho 3D theo mặt bằng chữ U | ADR-012; migration 003; `/api/layout` có flow |
+| 2026-11-26 | Review kiến trúc và luồng dữ liệu (planfirst brownfield) | Cập nhật Alignment Score (~85%); thêm `docs/review-2026-11-26.md`: race transaction, nghiệp vụ ngoài core.py, lỗi 500, mã hóa test |
+| 2026-11-26 | Sửa race khi ghi đồng thời | ADR-015; `db.lock()`, migration 004 (UNIQUE số đơn), `run()` bắt IntegrityError, chống bấm đúp ở `core.js`, `tests/test_race.py`; Alignment ~90% |
 
 ---
 To update, run `/planfirst` again.
