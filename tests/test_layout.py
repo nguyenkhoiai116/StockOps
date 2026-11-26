@@ -63,6 +63,18 @@ class TestLayout(unittest.TestCase):
         self.assertNotIn("dmg", f["quarantine"])
         self.assertIn("L2408", [x["batch_no"] for x in f["quarantine"]["expired"]])
 
+    def test_inbound_xep_theo_id(self):
+        # cùng eta: PO-999 (id nhỏ) phải đứng trước PO-1000 dù theo chuỗi "PO-1000" < "PO-999"
+        con = dbm.db()
+        with con:
+            pid = con.execute("SELECT product_id FROM pos LIMIT 1").fetchone()[0]
+            eta = con.execute("SELECT eta FROM pos WHERE po_no='PO-001'").fetchone()[0]
+            for no in ("PO-999", "PO-1000"):
+                con.execute("INSERT INTO pos(po_no, product_id, qty, eta, status) VALUES(?,?,?,?,'pending')", (no, pid, 1, eta))
+        con.close()
+        d = [x["po_no"] for x in self.get("admin")["flow"]["inbound"] if x["eta"] == eta]
+        self.assertEqual(d, ["PO-001", "PO-999", "PO-1000"])
+
 
 if __name__ == "__main__":
     unittest.main()

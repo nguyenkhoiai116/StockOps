@@ -16,7 +16,7 @@ const LINE = "#f8f9fb", ASPH = "#d9dee6";                       // vạch sơn, 
 // lại gần thì chữ giữ cỡ gần như cố định trên màn hình, ra xa thì dừng ở LH để biển không tràn khỏi khu.
 // Gần hơn NEAR mét thì biển hiện thêm dòng chi tiết (tên đầy đủ, số liệu).
 const LH = 3.4, LK = 0.025, NEAR = 60;
-const DOORY = 2.5;   // chân biển số cửa: cao hơn nóc xe đỗ ở cửa (3,3 m) để xe không che số cửa
+const DOORY = 2.5;   // chân biển số cửa: xe dừng cách biển ~1,1 m và camera tổng quan đặt cao nên nóc xe (3,3 m) không che số cửa
 const SANS = '"IBM Plex Sans", "Segoe UI", sans-serif', MONO = '"IBM Plex Mono", Consolas, monospace';
 
 // SITE: toạ độ các khu (ước lượng từ ảnh). r: [x0, x1, z0, z1]. code: khu chứa hàng gắn dữ liệu.
@@ -197,7 +197,7 @@ function load(P, x, z, c) {
 }
 
 // Vẽ flow (xem mount) vào bộ gom P. mark(mục, vẽ): mọi khối vẽ trong lúc gọi vẽ() thuộc về mục đó (để dò chuột).
-// Trả về các biển chữ cần thêm (biển số xe, "+n chờ cửa", "+n", bảng khu 8)
+// Trả về các biển chữ cần thêm (biển số xe, "+n xe nhập/xuất chờ cửa", "+n", bảng khu 8)
 function flows(P, flow, mark) {
   const out = [], door = Object.fromEntries(SITE.doors), dz = SITE.hall[3] + 1.5;   // đuôi xe sát ụ cửa
   const more = (n, at, w) => out.push(sign(card(["+" + num(n)]), null, at, w));
@@ -221,9 +221,10 @@ function flows(P, flow, mark) {
     mark(x, () => truck(P, Y[s], yz, 0, TRUCK[t]));
     plate(x, [Y[s], yz - 3]);
   });
-  if (inW) out.push(sign(card([`+${num(inW)} chờ cửa`]), null, [first.in ?? Y[0], yz - 3, 5], 6));
-  if (outW) out.push(sign(card([`+${num(outW)} chờ cửa`]), null, [first.out ?? Y[Y.length - 1], yz - 3, 5], 6));
-  if (miss) more(miss, [(Y[0] + Y[Y.length - 1]) / 2, yz + 1.2], 4);   // bãi hết ô đỗ: ghi số xe không vẽ được
+  if (inW) out.push(sign(card([`+${num(inW)} xe nhập chờ cửa`]), null, [first.in ?? Y[0], yz - 3, 5], 8));
+  // Không xe xuất nào có ô đỗ (bãi đầy xe nhập): đặt biển ở ô phải nhất, không đè lên xe nhập nào vì biển cao 5 m nằm cạnh ô
+  if (outW) out.push(sign(card([`+${num(outW)} xe xuất chờ cửa`]), null, [first.out ?? Y[Y.length - 1] + 3, yz - 3, 5], 8));
+  if (miss) out.push(sign(card([`+${num(miss)} xe chưa có chỗ đỗ`]), null, [(Y[0] + Y[Y.length - 1]) / 2, yz + 1.2], 8));   // bãi hết ô đỗ
   // Khu 5: mỗi đơn chờ soạn là 1 thùng trên bàn, 3 thùng mỗi bàn, tối đa 12 (bàn hàng trước trước)
   const tp = flow.topick;
   if (tp && tp.n > 0) {
@@ -469,13 +470,13 @@ export function mount(el, { zones, loads, flow = {} }, onPick) {
   scene.add(ring);
 
   // Biển đánh số các khu: xa chỉ "số · tên ngắn"; gần thêm dòng chi tiết (khu chứa: tên đầy đủ và số liệu)
-  // Khu 5, 6 có số liệu luồng (role có quyền xem) thì dòng chi tiết ghi thêm số đơn
-  const live = { 5: flow.topick && `${num(flow.topick.n)} đơn chờ soạn`, 6: flow.staged && `${num(flow.staged.length)} đơn chờ xe` };
+  // Khu 5, 6 có số liệu luồng (role có quyền xem) thì ghi số đơn: dòng xa "5 · Soạn hàng · 3 đơn", dòng gần đủ chữ
+  const live = { 5: flow.topick && [flow.topick.n, "đơn chờ soạn"], 6: flow.staged && [flow.staged.length, "đơn chờ xe"] };
   const signs = [];
   for (const s of SITE.zones) {
     const z = s.code && Z[s.code], head = `${s.no} · ${s.t}`, data = !s.code && live[s.no];
-    const more = s.code ? (z ? `${s.long} · ${z.sub}` : s.long) : data ? `${s.sub} · ${data}` : s.sub;
-    signs.push(sign(card([head]), more ? card([head, more], { mono: !!z || !!data }) : null, s.at, s.w));
+    const more = s.code ? (z ? `${s.long} · ${z.sub}` : s.long) : data ? `${s.sub} · ${num(data[0])} ${data[1]}` : s.sub;
+    signs.push(sign(card([data ? `${head} · ${num(data[0])} đơn` : head]), more ? card([head, more], { mono: !!z || !!data }) : null, s.at, s.w));
   }
   signs.push(...extra);
   // Số cửa trên tường trước, cổng vào và lối ra

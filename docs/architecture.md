@@ -334,7 +334,7 @@ StockOps/
 
 ### ADR-012: Kho 3D mặt bằng chữ U bằng Three.js trong `static/`
 - **Choice:** mặt bằng chữ U với kệ thật theo khu. Migration `003_racks.sql` thêm `racks, bays, levels` vào `zones`, tổng 204 ô (DRY 4×6×4=96, COS 3×5×4=60, CHL 2×4×3=24, FRZ 2×4×3=24), thay `BINS = 12` cũ. `/api/layout` trả `bins` (số ô) và `items` (lô đang có hàng) theo khu, cùng `flow` lọc theo quyền (đơn nhập, đơn chờ lấy/đã lấy/đang xuất, đội xe, hàng cách ly). Kệ và hàng vẽ bằng `InstancedMesh`. Three.js 0.180.0 qua import map (CDN), gói trong `static/js/wh3d.js`, chỉ tải khi mở chế độ 3D; không tải được thì về sơ đồ 2D.
-- **Why:** bố cục khớp mặt bằng kho thật; số ô lấy từ database nên không còn quy ước tạm; không cần bước build; sau này nạp được mô hình GLB bằng cách thay `makeRack()` và `makeLoad()`.
+- **Why:** bố cục khớp mặt bằng kho thật; số ô lấy từ database nên không còn quy ước tạm; không cần bước build; sau này nạp được mô hình GLB bằng cách thay khối InstancedMesh của kệ và hàng trong `mount()` (`static/js/wh3d.js`).
 - **Tradeoff:** cần mạng ở lần tải đầu. 1 lô = 1 ô, ô không có sức chứa riêng nên màu mức đầy chỉ tính theo khu. Xe được gán vào cửa N1–N4/X1–X4 theo thứ tự hiển thị, không lưu trong database; số cửa chỉ là minh họa.
 - **Revisit when:** cần quản lý theo pallet, lưu sức chứa hoặc số cửa thật (thêm migration); hoặc phải chạy không có Internet (tải Three.js về `static/vendor/`).
 

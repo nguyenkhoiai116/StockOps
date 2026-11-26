@@ -13,7 +13,7 @@ def flow_of(con, role):
     f = {}
     if can(role, "po.view"):
         f["inbound"] = rows(con, """SELECT o.po_no, p.sku, o.qty, o.eta FROM pos o JOIN products p ON p.id=o.product_id
-                                    WHERE o.status='pending' AND o.eta<=? ORDER BY o.eta, o.po_no""", (day(),))
+                                    WHERE o.status='pending' AND o.eta<=? ORDER BY o.eta, o.id""", (day(),))
     if can(role, "so.view"):
         so = """SELECT s.so_no, s.customer, p.sku, s.qty, s.due{} FROM sos s JOIN products p ON p.id=s.product_id
                 WHERE s.status=? ORDER BY s.due, s.so_no"""
