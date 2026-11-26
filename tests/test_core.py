@@ -622,3 +622,32 @@ class TimeTest(unittest.TestCase):
 
     def test_gio_ghi_so_khong_kem_mui_gio(self):
         self.assertEqual(len(dbm.now().isoformat(timespec="seconds")), 19)   # 'YYYY-MM-DDTHH:MM:SS'
+
+
+class KvisScopeTest(Base):
+    """Kvis chỉ nhận số liệu mà role của người hỏi được xem ở nơi khác trong web."""
+
+    def test_moi_role_thay_dung_phan_dashboard(self):
+        from wms.ai.prompts import snapshot
+        for role in ("admin", "inbound", "storage", "picking", "shipping"):
+            s = snapshot(self.con, role)
+            self.assertIn("TỒN KHẢ DỤNG THEO SKU", s, role)
+            self.assertIn("CẢNH BÁO", s, role)
+
+    def test_role_khong_co_quyen_khong_thay_so_lieu(self):
+        from wms.ai import prompts
+        old = prompts.PARTS
+        try:
+            prompts.PARTS = [("inv.view", prompts.stock_part)]   # giả sử phần này cần quyền xem tồn theo lô
+            self.assertIn("TỒN KHẢ DỤNG", prompts.snapshot(self.con, "storage"))
+            s = prompts.snapshot(self.con, "shipping")   # role xuất kho không có inv.view
+            self.assertNotIn("SKU-001", s)
+            self.assertIn("không có quyền", s)
+        finally:
+            prompts.PARTS = old
+
+    def test_moi_phan_deu_khai_quyen_co_that(self):
+        from wms.ai.prompts import PARTS
+        from wms.roles import PERMS
+        for perm, fn in PARTS:
+            self.assertIn(perm, PERMS, fn.__name__)
