@@ -4,8 +4,8 @@ import io
 
 from flask import Blueprint, Response, jsonify, request
 
-from ..core import run, zone_used
-from ..db import db, day, log, rows
+from ..core import do_adjust, run
+from ..db import bad, db, day, rows
 
 bp = Blueprint("inventory", __name__)
 
@@ -25,30 +25,13 @@ def api_inv():
 @bp.post("/api/inventory/<int:bid>/adjust")
 def api_adjust(bid):
     """Điều chỉnh tồn (kiểm kê lệch, hàng vỡ, hủy lô). delta âm = giảm."""
-    d = request.get_json()
+    d = request.get_json(silent=True)
+    d = d if isinstance(d, dict) else {}   # body hỏng hoặc không phải {...} -> báo lỗi rõ thay vì lỗi 500
     try:
         delta = int(d.get("delta"))
     except (TypeError, ValueError):
-        from ..db import bad
         return bad("Số điều chỉnh không hợp lệ")
-
-    def work(con):
-        """Kiểm tra không âm, không thấp hơn phần đã giữ, không vượt sức chứa rồi cập nhật và ghi sổ."""
-        b = con.execute("SELECT b.*, z.cap, z.name AS zname FROM batches b JOIN zones z ON z.code=b.zone WHERE b.id=?",
-                        (bid,)).fetchone()
-        if not b or delta == 0:
-            raise ValueError("Không có gì để điều chỉnh")
-        new = b["qty"] + delta
-        if new < 0:
-            raise ValueError("Không cho phép tồn kho âm")
-        if new < b["reserved"]:
-            raise ValueError(f"Lô đang giữ {b['reserved']} thùng cho đơn hàng, không giảm thấp hơn được")
-        if delta > 0 and zone_used(con, b["zone"]) + delta > b["cap"]:
-            raise ValueError(f"{b['zname']} không đủ sức chứa")
-        con.execute("UPDATE batches SET qty=? WHERE id=?", (new, bid))
-        log(con, "ADJ", b["product_id"], b["batch_no"], delta, d.get("note") or "Điều chỉnh tồn")
-
-    return run(work)
+    return run(do_adjust, bid, delta, d.get("note") or "Điều chỉnh tồn")   # luật nằm ở core.do_adjust
 
 
 @bp.get("/api/export/inventory.csv")

@@ -159,7 +159,7 @@ StockOps/
 ├── wms/                BACKEND
 │   ├── __init__.py     Tạo app, gắn các chức năng (danh sách FEATURES)
 │   ├── db.py           Kết nối database, khóa ghi (lock)
-│   ├── core.py         Nghiệp vụ lõi: FEFO, xuất kho, cảnh báo, KPI
+│   ├── core.py         Nghiệp vụ lõi: FEFO, xuất kho, tạo PO, điều chỉnh tồn, gợi ý đặt hàng, cảnh báo, KPI
 │   ├── migrate.py      Chạy các file trong migrations/
 │   ├── migrations/     Cấu trúc bảng theo từng bước 001, 002, ...
 │   ├── roles.py        Vai trò và quyền (PERMS)

@@ -1,7 +1,7 @@
 """Feature: Phân tích - KPI và báo cáo tổng hợp."""
 from flask import Blueprint, jsonify
 
-from ..core import get_kpis, zone_used
+from ..core import get_kpis, zone_status
 from ..db import db, rows
 
 bp = Blueprint("analytics", __name__)
@@ -19,8 +19,7 @@ def api_ana():
         "by_sku": rows(con, """SELECT p.sku || ' ' || p.name AS name, COALESCE(SUM(b.qty),0) AS val FROM products p
                                LEFT JOIN batches b ON b.product_id=p.id GROUP BY p.id ORDER BY val DESC"""),
         "by_status": rows(con, "SELECT status AS name, COUNT(*) AS val FROM sos GROUP BY status"),
-        "by_zone": [{"name": z["name"], "val": round(zone_used(con, z["code"]) / z["cap"] * 100, 1)}
-                    for z in rows(con, "SELECT * FROM zones")],
+        "by_zone": [{"name": z["name"], "val": z["pct"]} for z in zone_status(con)],
     }
     con.close()
     return jsonify(out)

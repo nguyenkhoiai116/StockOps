@@ -1,7 +1,7 @@
 """Feature: Dashboard tổng quan vận hành."""
 from flask import Blueprint, jsonify, request
 
-from ..core import get_alerts, get_kpis, stock_by_sku, stock_status, zone_used
+from ..core import get_alerts, get_kpis, reorder, stock_by_sku, stock_status, zone_status
 from ..db import db, day, rows
 
 bp = Blueprint("dashboard", __name__)
@@ -16,11 +16,7 @@ def api_dash():
     con = db()
     k = get_kpis(con)
     al = get_alerts(con)
-    # Sức chứa từng khu
-    zs = rows(con, "SELECT code, name, cap FROM zones")
-    for z in zs:
-        z["used"] = zone_used(con, z["code"])
-        z["pct"] = round(z["used"] / z["cap"] * 100, 1)
+    zs = zone_status(con)   # sức chứa từng khu
     # Nhập/xuất n ngày gần nhất, cộng từ sổ giao dịch
     sums = {(r["d"], r["kind"]): abs(r["q"]) for r in rows(con, """
         SELECT substr(ts,1,10) AS d, kind, SUM(qty) AS q FROM txs WHERE substr(ts,1,10)>=? GROUP BY d, kind""", (day(1 - n),))}
@@ -37,10 +33,14 @@ def api_dash():
               "status": stock_status(p["av"], p["safety"])} for p in stock_by_sku(con)]
     # Gợi ý xử lý sinh theo luật if-then; chỉ để người dùng tham khảo, không tự thay đổi dữ liệu
     tips = []
-    for p in stock_by_sku(con):
-        if p["av"] < p["safety"]:
-            tips.append({"title": f"Nên nhập thêm {p['sku']}",
-                         "detail": f"Khả dụng {p['av']}, tồn an toàn {p['safety']}. Gợi ý đặt {p['safety'] * 2 - p['av']} thùng."})
+    for r in reorder(con):   # số gợi ý đã trừ PO đang chờ nhận (xem core.reorder)
+        if r["qty"]:
+            wait = f", PO đang chờ {r['pending']}" if r["pending"] else ""
+            tips.append({"title": f"Nên nhập thêm {r['sku']}",
+                         "detail": f"Khả dụng {r['av']}, tồn an toàn {r['safety']}{wait}. Gợi ý đặt {r['qty']} thùng."})
+        else:
+            tips.append({"title": f"{r['sku']} đã có PO chờ nhận",
+                         "detail": f"Khả dụng {r['av']}, dưới tồn an toàn {r['safety']}; PO đang chờ {r['pending']} thùng đã đủ bù."})
     if any(a["kind"] == "expiry" and a["level"] == "high" for a in al):
         tips.append({"title": "Có lô đã hết hạn", "detail": "Vào Tồn kho, điều chỉnh về 0 để hủy lô hết hạn."})
     if any(a["kind"] == "temp" for a in al):

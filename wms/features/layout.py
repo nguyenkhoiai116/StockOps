@@ -1,7 +1,7 @@
 """Feature: Sơ đồ kho - các khu, ô chứa, mức lấp đầy và luồng hàng (xe, đơn, cách ly)."""
 from flask import Blueprint, g, jsonify
 
-from ..core import zone_bins, zone_used
+from ..core import zone_status
 from ..db import db, day, rows
 from ..roles import can
 
@@ -40,11 +40,8 @@ def flow_of(con, role):
 def api_layout():
     """Thông tin từng khu kho: kích thước kệ, sức chứa đã dùng, các ô đang có hàng, và luồng hàng theo quyền."""
     con = db()
-    zs = rows(con, "SELECT * FROM zones")
+    zs = zone_status(con)   # mỗi khu có sẵn bins (số ô), used, pct
     for z in zs:
-        z["bins"] = zone_bins(z)   # tổng số ô (int)
-        z["used"] = zone_used(con, z["code"])
-        z["pct"] = round(z["used"] / z["cap"] * 100, 1)
         z["items"] = rows(con, """SELECT b.bin, b.batch_no, b.exp, b.qty, b.reserved, p.sku, p.name
                                   FROM batches b JOIN products p ON p.id=b.product_id
                                   WHERE b.zone=? AND b.qty>0""", (z["code"],))

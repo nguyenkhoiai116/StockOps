@@ -29,6 +29,17 @@ def free_bin(con, code):
     return next((i for i in range(1, zone_bins(z) + 1) if i not in used), None)
 
 
+def zone_status(con):
+    """Mọi khu kèm used (số thùng đang chứa), pct (% sức chứa) và bins (số ô).
+    Nơi DUY NHẤT tính % lấp đầy: Dashboard, Sơ đồ kho, Phân tích, cảnh báo và Kvis đều gọi hàm này."""
+    zs = rows(con, "SELECT * FROM zones")
+    for z in zs:
+        z["used"] = zone_used(con, z["code"])
+        z["pct"] = round(z["used"] / z["cap"] * 100, 1) if z["cap"] else 0
+        z["bins"] = zone_bins(z)
+    return zs
+
+
 # ---------- FEFO & xuất kho ----------
 def do_pick(con, so_id):
     """FEFO (First Expired, First Out): giữ hàng cho đơn, ưu tiên lô hết hạn sớm nhất.
@@ -86,16 +97,34 @@ def stock_status(av, safety):
     return "low" if av < safety else "ok"
 
 
+def reorder_qty(av, safety, pending=0):
+    """Số thùng nên đặt: đưa tồn về gấp đôi tồn an toàn, trừ phần PO đang chờ nhận. Không âm."""
+    return max(0, safety * 2 - av - pending)
+
+
+def reorder(con):
+    """SKU dưới tồn an toàn kèm PO đang chờ nhận và số nên đặt (qty = 0: PO đang chờ đã đủ bù).
+    Dùng chung cho gợi ý trên Dashboard và câu hỏi "nên nhập gì?" của Kvis."""
+    wait = {r["product_id"]: r["q"] for r in rows(
+        con, "SELECT product_id, SUM(qty) AS q FROM pos WHERE status='pending' GROUP BY product_id")}
+    out = []
+    for p in stock_by_sku(con):
+        if p["av"] < p["safety"]:
+            n = wait.get(p["id"], 0)
+            out.append({"sku": p["sku"], "name": p["name"], "av": p["av"], "safety": p["safety"],
+                        "pending": n, "qty": reorder_qty(p["av"], p["safety"], n)})
+    return out
+
+
 def get_alerts(con):
     """Quét dữ liệu thật để sinh cảnh báo (không lưu sẵn, luôn khớp hiện trạng)."""
     out = []
-    for z in rows(con, "SELECT * FROM zones"):
+    for z in zone_status(con):
         if not z["tmin"] <= z["temp"] <= z["tmax"]:
             out.append({"kind": "temp", "level": "high",
                         "msg": f"{z['name']} đang {z['temp']}°C, ngoài ngưỡng {z['tmin']:g}..{z['tmax']:g}°C"})
-        pct = zone_used(con, z["code"]) / z["cap"] * 100
-        if pct >= 85:
-            out.append({"kind": "cap", "level": "med", "msg": f"{z['name']} đã lấp đầy {pct:.0f}%"})
+        if z["pct"] >= 85:
+            out.append({"kind": "cap", "level": "med", "msg": f"{z['name']} đã lấp đầy {z['pct']:.0f}%"})
     for b in rows(con, """SELECT b.*, p.sku FROM batches b JOIN products p ON p.id=b.product_id
                           WHERE b.qty>0 AND b.exp<=? ORDER BY b.exp""", (day(NEAR),)):
         left = (date.fromisoformat(b["exp"]) - date.today()).days
@@ -134,6 +163,38 @@ def get_kpis(con):
         "so_open": one("SELECT COUNT(*) FROM sos WHERE status!='delivered'"),
         "expired_value": one("SELECT SUM(b.qty*p.price) FROM batches b JOIN products p ON p.id=b.product_id WHERE b.exp<?", (day(),)),
     }
+
+
+# ---------- Đặt hàng & điều chỉnh tồn ----------
+# Hai hàm ghi này KHÔNG tự gọi lock(con): nơi gọi (core.run() hoặc nút xác nhận đề xuất của Kvis)
+# giữ khóa, vì BEGIN IMMEDIATE không gọi lồng nhau được.
+def create_po(con, pid, qty, eta):
+    """Tạo PO chờ nhận, tự đánh số PO-xxx; trả về số PO."""
+    if qty <= 0:
+        raise ValueError("Số lượng phải lớn hơn 0")
+    if not con.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone():
+        raise ValueError("Sản phẩm không tồn tại")
+    no = f"PO-{con.execute('SELECT COUNT(*) FROM pos').fetchone()[0] + 1:03d}"
+    con.execute("INSERT INTO pos (po_no,product_id,qty,eta) VALUES (?,?,?,?)", (no, pid, qty, eta))
+    return no
+
+
+def do_adjust(con, bid, delta, note):
+    """Điều chỉnh tồn 1 lô (kiểm kê lệch, hàng vỡ, hủy lô); delta âm = giảm.
+    Luật: không âm, không thấp hơn phần đã giữ cho đơn, không vượt sức chứa khu."""
+    b = con.execute("SELECT b.*, z.cap, z.name AS zname FROM batches b JOIN zones z ON z.code=b.zone WHERE b.id=?",
+                    (bid,)).fetchone()
+    if not b or delta == 0:
+        raise ValueError("Không có gì để điều chỉnh")
+    new = b["qty"] + delta
+    if new < 0:
+        raise ValueError("Không cho phép tồn kho âm")
+    if new < b["reserved"]:
+        raise ValueError(f"Lô đang giữ {b['reserved']} thùng cho đơn hàng, không giảm thấp hơn được")
+    if delta > 0 and zone_used(con, b["zone"]) + delta > b["cap"]:
+        raise ValueError(f"{b['zname']} không đủ sức chứa")
+    con.execute("UPDATE batches SET qty=? WHERE id=?", (new, bid))
+    log(con, "ADJ", b["product_id"], b["batch_no"], delta, note)
 
 
 # ---------- Khung chạy nghiệp vụ trong transaction ----------

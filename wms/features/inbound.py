@@ -1,7 +1,7 @@
 """Feature: Nhập hàng - PO và nhận hàng theo lô."""
 from flask import Blueprint, jsonify, request
 
-from ..core import free_bin, zone_used
+from ..core import create_po, free_bin, run, zone_used
 from ..db import bad, day, db, lock, log, rows
 
 bp = Blueprint("inbound", __name__)
@@ -20,18 +20,14 @@ def api_pos():
 @bp.post("/api/pos")
 def api_po_add():
     """Tạo PO mới, tự đánh số PO-xxx; ngày đến mặc định là ngày mai."""
-    d = request.get_json()
-    qty = int(d.get("qty") or 0)
-    if qty <= 0:
-        return bad("Số lượng phải lớn hơn 0")
-    con = db()
-    with con:
-        lock(con)   # khóa trước khi đếm, để 2 PO tạo cùng lúc không trùng số
-        n = con.execute("SELECT COUNT(*) FROM pos").fetchone()[0] + 1
-        con.execute("INSERT INTO pos (po_no,product_id,qty,eta) VALUES (?,?,?,?)",
-                    (f"PO-{n:03d}", int(d["product_id"]), qty, d.get("eta") or day(1)))
-    con.close()
-    return jsonify(ok=True)
+    d = request.get_json(silent=True)
+    d = d if isinstance(d, dict) else {}   # body hỏng hoặc không phải {...} -> báo lỗi rõ thay vì lỗi 500
+    try:
+        pid, qty = int(d.get("product_id")), int(d.get("qty") or 0)
+    except (TypeError, ValueError):
+        return bad("Cần chọn sản phẩm và nhập số lượng")
+    # run() khóa trước khi đếm số PO, nên 2 PO tạo cùng lúc không trùng số; luật nằm ở core.create_po
+    return run(create_po, pid, qty, d.get("eta") or day(1))
 
 
 @bp.post("/api/pos/<int:po_id>/receive")

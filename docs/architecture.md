@@ -1,6 +1,22 @@
-# StockOps (ECONEXUS_WAREHOUSE) — Architecture
+# StockOps — Architecture
 
 > Generated on 2026-11-20 | Momento: **validate** — prototype chạy local, 1 dev, đang chuẩn bị mở rộng sang AI Agent + mô phỏng + ML
+
+## Hiện trạng (cập nhật 2026-11-26)
+
+Phần lớn tài liệu này là **kế hoạch**. Bảng dưới là những gì đang có thật trong code.
+
+| Phần | Đang có | Chưa có |
+|---|---|---|
+| WMS | PO → nhận hàng thành lô → đơn bán → soạn FEFO → xuất → giao; cảnh báo, KPI, gợi ý đặt hàng | — |
+| Quyền | Đăng nhập, 5 role, 17 quyền trong `wms/roles.py`; `guard()` chặn mặc định | — |
+| Giao diện | 8 trang JS thuần trong `static/`, kho 3D chữ U | `web/` (Next.js, tùy chọn) |
+| Kvis | Trả lời từ ảnh chụp số liệu (`prompts.snapshot`) | Tool đọc, RAG, đề xuất hành động (nhánh A) |
+| Dữ liệu ngoài | — | Cổng ingest, `sims/`, `ml/` (nhánh B) |
+| Database | SQLite WAL, migration 001–004, `lock()` chống ghi đè | `005_ai.sql`, bảng time-series |
+| Test | 64 test, gồm luật lõi (`tests/test_core.py`) | Bộ chấm điểm agent, RAG |
+
+Thứ tự đã chốt: **nhánh A** (Kvis agent, Phase 5–7, spec `docs/superpowers/specs/2026-11-26-kvis-agent-design.md`) làm trước, **nhánh B** (dữ liệu mô phỏng → ML, Phase 1–4) làm sau. Phần 0 của spec đã xong; bước tiếp theo là A1.
 
 ## Summary
 
@@ -12,7 +28,7 @@ StockOps hiện là một **monolith Flask + SQLite + HTML/JS thuần (ES module
 
 | Dimension | Giá trị | Độ tin cậy | Căn cứ |
 |---|---|---|---|
-| project_moment | validate | 0.95 | prototype, chạy `python app.py`, chưa có auth |
+| project_moment | validate | 0.95 | prototype, chạy `python app.py`, đã có đăng nhập + 5 role |
 | product_type | web (internal tool) + data/ML | 0.95 | Flask + static SPA |
 | team_size | 1 | 0.9 | dự án cá nhân/môn học |
 | user_scale | < 1k (thực tế < 10) | 0.9 | chạy local, demo |
@@ -35,17 +51,19 @@ Cập nhật 2026-11-26. Chi tiết và bằng chứng: `docs/review-2026-11-26.
 
   ✅ Flask monolith + blueprints     — đúng tầm, dễ thêm feature
   ✅ SQLite WAL + timeout 5s         — đã bật trong db()
-  ✅ Migration 001–003 (user_version) — đã có, có test
+  ✅ Migration 001–004 (user_version) — đã có, có test
   ✅ HTML/CSS/JS ES modules + 3D lười — không build step
   ✅ guard() mặc định chặn + PERMS   — test kiểm mọi route đã khai quyền
   ✅ CHECK ở DB + transaction        — tồn âm bị chặn ở cả DB lẫn code
   ✅ LLM chỉ qua llm.py, key ở backend; requirements đã pin; debug tắt mặc định
   ✅ Khối ghi khóa từ đầu (lock)      — bấm đúp không còn giữ hàng / nhận PO 2 lần (ADR-015)
-  ⚠️  Nghiệp vụ còn ở 5 file feature  — nhận PO, điều chỉnh, giao hàng, % khu, gợi ý đặt hàng
+  ✅ Luật lõi có test riêng           — tests/test_core.py: FEFO, xe lạnh, điều chỉnh, gợi ý đặt
+  ✅ Luật Kvis cần đã ở core.py       — zone_status, reorder, create_po, do_adjust (Phần 0)
+  ⚠️  Nghiệp vụ còn ở 2 route         — nhận PO (inbound.py), xác nhận giao (shipping.py), để sau
   ❌ Chưa có bảng time-series         — zones.temp là 1 con số tĩnh (Phase 1)
   ❌ Chưa có dữ liệu lịch sử đủ train — chờ simulator (Phase 2–3)
 
-  Alignment: ~90% — KHÔNG có complexity thừa; còn gom nghiệp vụ vào core.py trước Phase 5
+  Alignment: ~90% — KHÔNG có complexity thừa; sẵn sàng làm A1 (agent + tool đọc)
 ```
 
 ## Architecture Diagram (ASCII)
@@ -144,7 +162,7 @@ StockOps/
 ├── wms/
 │   ├── __init__.py  db.py  core.py  seed.py
 │   ├── migrate.py               # chạy migrations theo PRAGMA user_version
-│   ├── migrations/              # 001_base.sql, 002_users.sql, 003_timeseries.sql, 004_ai.sql ...
+│   ├── migrations/              # đã có 001_base … 004_unique_order_no; 005_ai.sql (nhánh A); time-series (nhánh B)
 │   ├── features/                # (cũ) + ingest.py, ml.py, chat.py
 │   └── ai/
 │       ├── llm.py               # 1 client, cấu hình bằng .env
@@ -361,16 +379,18 @@ StockOps/
 
 Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
 
+Thứ tự đã đổi (chủ dự án chốt 2026-11-26): Phase 0 xong → **nhánh A** (Phase 5–7, gộp trong spec Kvis) → **nhánh B** (Phase 1–4). Số phase giữ nguyên để khớp các tài liệu cũ.
+
 | Phase | Nội dung | Tiêu chí xong |
 |---|---|---|
-| **0. Dọn nền** (1–2 buổi) | Bật WAL + `busy_timeout` trong `db()`; viết `migrate.py`, chuyển SCHEMA hiện tại thành `001_base.sql` (xử lý bảng `icons`); `.env` + python-dotenv; `FLASK_DEBUG` từ env; pin `requirements.txt`; 3 test pytest cho `do_pick` (đủ hàng, chia lô, thiếu hàng) | `pytest` xanh; xóa wms.db chạy lại vẫn ra đúng dữ liệu mẫu |
-| **1. Ingest + bảng time-series** (1 buổi) | `003_timeseries.sql`: `stores`, `sensor_readings`, `store_traffic`, `store_sales` (index theo `(key, ts)`); `features/ingest.py` nhận đơn lẻ + theo lô; ingest sensor cập nhật luôn `zones.temp/hum` để `get_alerts()` cũ chạy không cần sửa | `curl` POST 1 reading 10°C vào CHL → Dashboard hiện cảnh báo |
-| **2. temp_sim** (2 buổi) | `sims/common/clock.py`, `client.py`; app 5101 với thanh trượt + nút sự cố; trang "Giám sát nhiệt độ" trong StockOps vẽ biểu đồ 1 giờ gần nhất (polling) | Bấm "hỏng máy nén" → trong ≤ 10s StockOps hiện cảnh báo |
-| **3. store_sim** (2–3 buổi) | App 5102: cửa hàng, lượt khách, bán lẻ, tự đặt SO; `scripts/backfill.py --days 180` | Có ≥ 180 ngày `store_sales`; chạy live x60 trong 10 phút sinh ra SO mới trong trang Soạn hàng |
-| **4. ML** (3–4 buổi) | `ml/features.py`; baseline; train demand + traffic; `evaluate.py` in MAE/WAPE so với baseline; `features/ml.py`; biểu đồ dự báo vs thực tế; gợi ý đặt hàng dùng dự báo (ROP = nhu cầu dự báo trong lead time + safety stock) thay cho `safety*2 - av` | Model thắng baseline trên 28 ngày cuối; API trả dự báo 7 ngày |
-| **5. Agent + tool** (2–3 buổi) | `004_ai.sql` (`chat_logs`, `agent_actions`, `doc_chunks`); `ai/llm.py`, `tools.py` (chỉ đọc), `agent.py`; `/api/chat`; nối `chat.js`; bộ 20 câu hỏi mẫu kèm đáp án | ≥ 16/20 câu trả lời đúng số liệu, mỗi câu ≤ 5 bước tool |
-| **6. RAG** (2 buổi) | Viết 8–15 tài liệu trong `knowledge/`; `build_index.py`; tool `search_docs`; hiển thị nguồn trích dẫn | Bộ 15 câu hỏi tài liệu: đúng tài liệu nằm trong top-5 ≥ 80% |
-| **7. Đề xuất hành động** (1–2 buổi) | `propose_po`, `propose_adjust`; thẻ xác nhận trong chat; trang lịch sử đề xuất | Hỏi "nên nhập gì?" → thẻ PO đúng SKU/số lượng; bấm xác nhận → PO xuất hiện ở trang Nhập hàng |
+| **0. Dọn nền** (1–2 buổi) · ✅ xong | Bật WAL + `busy_timeout` trong `db()`; viết `migrate.py`, chuyển SCHEMA hiện tại thành `001_base.sql` (xử lý bảng `icons`); `.env` + python-dotenv; `FLASK_DEBUG` từ env; pin `requirements.txt`; 3 test pytest cho `do_pick` (đủ hàng, chia lô, thiếu hàng) | `pytest` xanh; xóa wms.db chạy lại vẫn ra đúng dữ liệu mẫu |
+| **1. Ingest + bảng time-series** (1 buổi) · nhánh B | Migration số tiếp theo (vd `006_timeseries.sql`): `stores`, `sensor_readings`, `store_traffic`, `store_sales` (index theo `(key, ts)`); `features/ingest.py` nhận đơn lẻ + theo lô; ingest sensor cập nhật luôn `zones.temp/hum` để `get_alerts()` cũ chạy không cần sửa | `curl` POST 1 reading 10°C vào CHL → Dashboard hiện cảnh báo |
+| **2. temp_sim** (2 buổi) · nhánh B | `sims/common/clock.py`, `client.py`; app 5101 với thanh trượt + nút sự cố; trang "Giám sát nhiệt độ" trong StockOps vẽ biểu đồ 1 giờ gần nhất (polling) | Bấm "hỏng máy nén" → trong ≤ 10s StockOps hiện cảnh báo |
+| **3. store_sim** (2–3 buổi) · nhánh B | App 5102: cửa hàng, lượt khách, bán lẻ, tự đặt SO; `scripts/backfill.py --days 180` | Có ≥ 180 ngày `store_sales`; chạy live x60 trong 10 phút sinh ra SO mới trong trang Soạn hàng |
+| **4. ML** (3–4 buổi) · nhánh B | `ml/features.py`; baseline; train demand + traffic; `evaluate.py` in MAE/WAPE so với baseline; `features/ml.py`; biểu đồ dự báo vs thực tế; gợi ý đặt hàng dùng dự báo (ROP = nhu cầu dự báo trong lead time + safety stock) thay cho `safety*2 - av` | Model thắng baseline trên 28 ngày cuối; API trả dự báo 7 ngày |
+| **5. Agent + tool** (2–3 buổi) · nhánh A, làm trước | `005_ai.sql` (`chat_logs`, `agent_actions`, `doc_chunks`); `ai/llm.py`, `tools.py` (chỉ đọc), `agent.py`; `/api/chat`; nối `chat.js`; bộ 20 câu hỏi mẫu kèm đáp án | ≥ 16/20 câu trả lời đúng số liệu, mỗi câu ≤ 5 bước tool |
+| **6. RAG** (2 buổi) · nhánh A | Viết 8–15 tài liệu trong `knowledge/`; `build_index.py`; tool `search_docs`; hiển thị nguồn trích dẫn | Bộ 15 câu hỏi tài liệu: đúng tài liệu nằm trong top-5 ≥ 80% |
+| **7. Đề xuất hành động** (1–2 buổi) · nhánh A | `propose_po`, `propose_adjust`; thẻ xác nhận trong chat; trang lịch sử đề xuất | Hỏi "nên nhập gì?" → thẻ PO đúng SKU/số lượng; bấm xác nhận → PO xuất hiện ở trang Nhập hàng |
 
 ## Cost Estimate
 
@@ -425,6 +445,7 @@ Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
 | 2026-11-26 | Kho 3D theo mặt bằng chữ U | ADR-012; migration 003; `/api/layout` có flow |
 | 2026-11-26 | Review kiến trúc và luồng dữ liệu (planfirst brownfield) | Cập nhật Alignment Score (~85%); thêm `docs/review-2026-11-26.md`: race transaction, nghiệp vụ ngoài core.py, lỗi 500, mã hóa test |
 | 2026-11-26 | Sửa race khi ghi đồng thời | ADR-015; `db.lock()`, migration 004 (UNIQUE số đơn), `run()` bắt IntegrityError, chống bấm đúp ở `core.js`, `tests/test_race.py`; Alignment ~90% |
+| 2026-11-26 | Chốt thứ tự nhánh A trước, làm Phần 0 của spec Kvis | Mục Hiện trạng; `tests/test_core.py` (luật lõi, viết trước khi chuyển); `core.zone_status`, `reorder`/`reorder_qty` (trừ PO đang chờ nhận), `create_po`, `do_adjust`; route PO và điều chỉnh báo 400 khi body sai; sửa chỗ lệch (migration 004/005, auth, thứ tự phase); xóa `HUONG_DAN.txt`; tên StockOps ở mọi nơi |
 
 ---
 To update, run `/planfirst` again.
