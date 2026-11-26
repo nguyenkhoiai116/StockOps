@@ -56,10 +56,10 @@ def api_po_receive(po_id):
             b = free_bin(con, z["code"])
             if b is None:
                 raise ValueError(f"{z['name']} đã hết ô trống")
-            con.execute("INSERT INTO batches (product_id,batch_no,exp,qty,zone,bin) VALUES (?,?,?,?,?,?)",
-                        (po["product_id"], no, exp, ok, z["code"], b))
+            bid = con.execute("INSERT INTO batches (product_id,batch_no,exp,qty,zone,bin) VALUES (?,?,?,?,?,?)",
+                              (po["product_id"], no, exp, ok, z["code"], b)).lastrowid
             con.execute("UPDATE pos SET status='received', recv=?, dmg=? WHERE id=?", (ok, dmg, po_id))
-            log(con, "IN", po["product_id"], no, ok, f"Nhận {po['po_no']} vào {z['code']}-{b:02d}")
+            log(con, "IN", po["product_id"], no, ok, f"Nhận {po['po_no']} vào {z['code']}-{b:02d}", bid=bid)
     except ValueError as e:
         return bad(str(e))
     finally:

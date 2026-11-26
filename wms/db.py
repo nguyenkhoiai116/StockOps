@@ -7,7 +7,7 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from flask import jsonify, request
+from flask import g, has_request_context, jsonify, request
 
 ROOT = Path(__file__).resolve().parent.parent   # thư mục dự án
 DB = str(ROOT / "wms.db")   # file database SQLite, tự tạo ở lần chạy đầu; đường dẫn cố định nên chạy từ thư mục nào cũng ra cùng 1 file
@@ -42,11 +42,14 @@ def day(n=0):
     return (date.today() + timedelta(days=n)).isoformat()
 
 
-def log(con, kind, pid, batch, qty, note, ts=None):
-    """Ghi 1 dòng vào sổ giao dịch kho. kind: IN (nhập) | OUT (xuất) | ADJ (điều chỉnh)."""
+def log(con, kind, pid, batch, qty, note, ts=None, bid=None):
+    """Ghi 1 dòng vào sổ giao dịch kho. kind: IN (nhập) | OUT (xuất) | ADJ (điều chỉnh).
+    bid: id của lô (batches.id) -> đối soát được tồn từng lô. Người thực hiện lấy từ phiên đăng nhập;
+    chạy ngoài request (dữ liệu mẫu, script) thì để trống = hệ thống."""
     ts = ts or datetime.now().isoformat(timespec="seconds")
-    con.execute("INSERT INTO txs (ts, kind, product_id, batch_no, qty, note) VALUES (?,?,?,?,?,?)",
-                (ts, kind, pid, batch, qty, note))
+    who = g.user["username"] if has_request_context() and getattr(g, "user", None) else None
+    con.execute("INSERT INTO txs (ts, kind, product_id, batch_no, qty, note, batch_id, who) VALUES (?,?,?,?,?,?,?,?)",
+                (ts, kind, pid, batch, qty, note, bid, who))
 
 
 def bad(msg, code=400):

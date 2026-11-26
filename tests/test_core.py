@@ -437,3 +437,59 @@ class ShipExpiredTest(Base):
         sid = self.order(pid, 10)
         self.go(core.do_pick, sid)
         self.go(core.do_ship, sid, DRY_CAR)
+
+
+class LedgerTest(Base):
+    """Sổ giao dịch txs phải đối soát được với tồn: SUM(txs.qty) của 1 lô = batches.qty."""
+
+    def test_du_lieu_mau_khop_so(self):
+        self.assertEqual(core.ledger_gaps(self.con), [])
+        self.assertEqual(self.one("SELECT COUNT(*) FROM txs WHERE batch_id IS NULL"), (0,))
+
+    def test_du_lieu_mau_giu_dung_ton_cuoi(self):
+        got = dict(self.con.execute("SELECT batch_no, qty FROM batches WHERE batch_no LIKE 'L24%'").fetchall())
+        self.assertEqual(got, {"L2401": 400, "L2402": 500, "L2403": 600, "L2404": 60, "L2405": 120, "L2406": 120,
+                               "L2407": 150, "L2408": 40, "L2409": 100, "L2410": 45, "L2411": 120, "L2412": 200,
+                               "L2413": 120})
+        self.assertEqual(self.one("SELECT reserved FROM batches WHERE batch_no='L2407'"), (40,))   # SO-004 đã soạn
+
+    def test_lich_su_xuat_co_ngay_qua_khu(self):
+        n = self.one("SELECT COUNT(*) FROM txs WHERE kind='OUT' AND substr(ts,1,10) < ?", (dbm.day(),))[0]
+        self.assertEqual(n, 3)   # 3 đơn đã giao SO-006, SO-007, SO-008
+
+    def test_thao_tac_qua_api_van_khop_va_ghi_nguoi_lam(self):
+        c = self.admin()
+        pid = self.product()
+        bid = self.batch(pid, "XA", 60, 50)
+        with self.con:   # lô thử dựng tay -> ghi IN đầu kỳ cho khớp như lô thật
+            dbm.log(self.con, "IN", pid, "XA", 50, "đầu kỳ thử", bid=bid)
+        po = c.post("/api/pos", json={"product_id": pid, "qty": 30})
+        self.assertEqual(po.status_code, 200)
+        po_id = self.one("SELECT id FROM pos ORDER BY id DESC LIMIT 1")[0]
+        self.assertEqual(c.post(f"/api/pos/{po_id}/receive", json={"batch_no": "XN", "exp": dbm.day(90), "qty": 30}).status_code, 200)
+        sid = self.order(pid, 60)
+        self.assertEqual(c.post(f"/api/orders/{sid}/pick").status_code, 200)
+        self.assertEqual(c.post(f"/api/orders/{sid}/ship", json={"plate": DRY_CAR}).status_code, 200)
+        self.assertEqual(c.post(f"/api/inventory/{bid}/adjust", json={"delta": -0}).status_code, 400)
+        nb = self.one("SELECT id FROM batches WHERE batch_no='XN'")[0]
+        self.assertEqual(c.post(f"/api/inventory/{nb}/adjust", json={"delta": -5, "note": "vỡ"}).status_code, 200)
+        self.assertEqual(core.ledger_gaps(self.con), [])
+        self.assertEqual(self.one("SELECT COUNT(*) FROM txs WHERE product_id=? AND who='admin'", (pid,)), (4,))   # IN, 2 OUT, ADJ
+
+    def test_migration_dien_batch_id_cho_dong_cu(self):
+        import sqlite3
+        from wms.migrate import DIR
+        con = sqlite3.connect(os.path.join(self.tmp, "old.db"))
+        for f in sorted(DIR.glob("00[1-5]_*.sql")):
+            con.executescript(f.read_text(encoding="utf-8"))
+        con.execute("PRAGMA user_version=5")
+        con.execute("INSERT INTO products (id,sku,name,storage) VALUES (1,'S1','A','dry')")
+        con.execute("INSERT INTO zones (code,name,storage,cap,tmin,tmax,temp,hum) VALUES ('DRY','K','dry',100,0,40,20,50)")
+        con.executemany("INSERT INTO batches (id,product_id,batch_no,exp,qty,zone,bin) VALUES (?,1,?,'2099-01-01',1,'DRY',?)",
+                        [(1, "A1", 1), (2, "B1", 2), (3, "B1", 3)])   # B1 trùng số lô ở 2 lô
+        con.executemany("INSERT INTO txs (ts,kind,product_id,batch_no,qty,note) VALUES ('t','IN',1,?,1,'')", [("A1",), ("B1",)])
+        con.commit()
+        from wms.migrate import migrate
+        migrate(con)
+        self.assertEqual(con.execute("SELECT batch_no, batch_id FROM txs ORDER BY id").fetchall(), [("A1", 1), ("B1", None)])
+        con.close()

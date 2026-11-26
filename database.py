@@ -2,6 +2,7 @@
 
   python database.py               xem tình trạng database
   python database.py backup        sao lưu wms.db vào thư mục backups/
+  python database.py check         đối soát: sổ giao dịch có khớp tồn từng lô không, khóa ngoại có hỏng không
   python database.py reset         sao lưu rồi làm lại dữ liệu mẫu từ đầu, hỏi mật khẩu demo
   python database.py reset -y      như trên nhưng không hỏi xác nhận
 
@@ -14,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from wms import db as dbm
+from wms.core import ledger_gaps
 from wms.migrate import DIR
 from wms.seed import init_db
 
@@ -43,7 +45,35 @@ def status():
         no = con.execute("SELECT COUNT(*) FROM users WHERE pw_hash IS NULL").fetchone()[0]
         if no:
             print(f"{no} tài khoản chưa có mật khẩu -> python users.py passwd --moi")
+    if ver == latest() and ledger_gaps(con):
+        print("Sổ giao dịch lệch tồn kho -> xem: python database.py check")
     con.close()
+    return 0
+
+
+def check():
+    """Đối soát: mỗi lô phải có SUM(txs.qty) = batches.qty; không có dòng nào vi phạm khóa ngoại."""
+    if not Path(dbm.DB).exists():
+        print("Chưa có database. Chạy: python database.py reset")
+        return 1
+    con = dbm.db()
+    if con.execute("PRAGMA user_version").fetchone()[0] != latest():
+        print("Database chưa cập nhật migration. Chạy server 1 lần rồi kiểm lại")
+        con.close()
+        return 1
+    gaps, fk = ledger_gaps(con), con.execute("PRAGMA foreign_key_check").fetchall()
+    for g in gaps:
+        print(f"  Lô {g['batch_no']} (id {g['id']}): tồn {g['qty']}, sổ cộng ra {g['ledger']}")
+    for r in fk:
+        print(f"  Bảng {r[0]} dòng {r[1]} trỏ tới {r[2]} không tồn tại")
+    loose = con.execute("SELECT COUNT(*) FROM txs WHERE batch_id IS NULL").fetchone()[0]
+    con.close()
+    if loose:
+        print(f"  {loose} dòng sổ cũ không gắn được vào lô nào (dữ liệu trước migration 006)")
+    if gaps or fk:
+        print("Có chỗ lệch. Dữ liệu mẫu thì làm lại bằng: python database.py reset")
+        return 1
+    print("Sổ giao dịch khớp tồn từng lô, khóa ngoại không hỏng")
     return 0
 
 
@@ -86,6 +116,8 @@ def main(args):
         return status()
     if args[0] == "backup" and len(args) == 1:
         return 0 if backup() else 1
+    if args[0] == "check" and len(args) == 1:
+        return check()
     if args[0] == "reset" and args[1:] in ([], ["-y"]):
         if reset(yes=args[1:] == ["-y"]):
             return 1

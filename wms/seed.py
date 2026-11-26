@@ -57,18 +57,9 @@ def sample(con):
         ("FRZ", "Kho đông -18°C", "frozen", 2000, -25, -18, -18.6, 55, 2, 4, 3),
         ("COS", "Kho mỹ phẩm", "cosmetics", 6000, 15, 28, 24.0, 50, 3, 5, 4),
     ])
-    for pid, no, d, q, z, b in [
-        (1, "L2401", 150, 400, "DRY", 1), (1, "L2402", 260, 500, "DRY", 2), (2, "L2403", 200, 600, "DRY", 3),
-        (3, "L2404", 5, 60, "CHL", 1), (3, "L2405", 25, 120, "CHL", 2), (4, "L2406", 12, 120, "CHL", 3),
-        (5, "L2407", 120, 150, "FRZ", 1), (6, "L2408", -3, 40, "FRZ", 2), (6, "L2409", 90, 100, "FRZ", 3),
-        (7, "L2410", 400, 45, "COS", 1), (8, "L2411", 500, 120, "COS", 2),
-        (9, "L2412", 300, 200, "DRY", 4), (10, "L2413", 20, 180, "DRY", 5),
-    ]:
-        con.execute("INSERT INTO batches (product_id,batch_no,exp,qty,zone,bin) VALUES (?,?,?,?,?,?)",
-                    (pid, no, day(d), q, z, b))
     con.executemany("INSERT INTO pos (po_no,product_id,qty,eta,status,recv) VALUES (?,?,?,?,?,?)", [
         ("PO-001", 4, 300, day(0), "pending", 0), ("PO-002", 7, 100, day(1), "pending", 0),
-        ("PO-003", 1, 400, day(-2), "received", 400),
+        ("PO-003", 1, 400, day(-6), "received", 400),   # đã nhận thành lô L2401 (xem bên dưới)
     ])
     con.executemany("INSERT INTO sos (so_no,customer,product_id,qty,due,status,plate,on_time) VALUES (?,?,?,?,?,?,?,?)", [
         ("SO-001", "Siêu thị An Phú", 1, 450, day(1), "new", None, None),      # cần 2 lô -> thấy FEFO chia lô
@@ -76,17 +67,42 @@ def sample(con):
         ("SO-003", "Nhà hàng Biển Xanh", 6, 120, day(2), "new", None, None),   # thiếu hàng -> thấy bị từ chối
         ("SO-004", "Cửa hàng Bình Minh", 5, 40, day(1), "new", None, None),
         ("SO-005", "Siêu thị An Phú", 10, 60, day(0), "new", None, None),
-        ("SO-006", "Đại lý Hòa Bình", 2, 100, day(-1), "delivered", "51C-123.45", 1),
-        ("SO-007", "Tạp hóa Minh Tâm", 9, 50, day(-2), "delivered", "51C-123.45", 0),
+        ("SO-006", "Đại lý Hòa Bình", 2, 100, day(-1), "delivered", "51C-123.45", 1),   # 3 đơn đã giao: history() soạn
+        ("SO-007", "Tạp hóa Minh Tâm", 9, 50, day(-2), "delivered", "51C-123.45", 0),   # và xuất thật để có dòng OUT
         ("SO-008", "Mỹ phẩm Hoa Mai", 8, 30, day(-1), "delivered", "51C-123.45", 1),
     ])
     con.executemany("INSERT INTO vehicles VALUES (?,?,?)", [
         ("51C-123.45", "Nguyễn Văn An", "dry"), ("51D-678.90", "Trần Minh Bảo", "cold"),
     ])
-    for i, (a, b) in enumerate([(420, 310), (300, 380), (500, 290), (260, 410), (380, 350), (400, 180)]):
-        ts = f"{day(i - 6)}T10:00:00"
-        log(con, "IN", 1, "L24xx", a, "Nhập hàng (lịch sử mẫu)", ts)
-        log(con, "OUT", 2, "L24xx", -b, "Xuất hàng (lịch sử mẫu)", ts)
+    history(con)
     do_pick(con, 4)                 # SO-004: đã soạn (dùng đúng hàm nghiệp vụ -> số liệu khớp)
     do_pick(con, 5)
     do_ship(con, 5, "51C-123.45")   # SO-005: đang giao
+
+
+def history(con):
+    """6 ngày lịch sử mẫu, chạy THEO THỨ TỰ THỜI GIAN bằng đúng hàm nghiệp vụ, nên sổ txs khớp tồn từng lô:
+    mỗi lô có 1 dòng IN lúc nhập; 3 đơn đã giao có dòng OUT thật (FEFO chọn lô).
+    Số nhập đầu = tồn hiện tại + phần đã xuất cho 3 đơn cũ (L2403 +100, L2411 +30, L2412 +50)."""
+    # (sản phẩm, số lô, hạn dùng sau n ngày, số nhập, khu, ô, nhập cách đây n ngày, ghi chú)
+    lots = [
+        (1, "L2401", 150, 400, "DRY", 1, 6, "Nhận PO-003 vào DRY-01"), (1, "L2402", 260, 500, "DRY", 2, 6, ""),
+        (2, "L2403", 200, 700, "DRY", 3, 6, ""), (3, "L2404", 5, 60, "CHL", 1, 5, ""),
+        (3, "L2405", 25, 120, "CHL", 2, 5, ""), (4, "L2406", 12, 120, "CHL", 3, 5, ""),
+        (5, "L2407", 120, 150, "FRZ", 1, 4, ""), (6, "L2408", -3, 40, "FRZ", 2, 4, ""),
+        (6, "L2409", 90, 100, "FRZ", 3, 4, ""), (7, "L2410", 400, 45, "COS", 1, 3, ""),
+        (8, "L2411", 500, 150, "COS", 2, 3, ""), (9, "L2412", 300, 250, "DRY", 4, 3, ""),
+        (10, "L2413", 20, 180, "DRY", 5, 2, ""),
+    ]
+    for pid, no, d, q, z, b, ago, note in lots:
+        bid = con.execute("INSERT INTO batches (product_id,batch_no,exp,qty,zone,bin) VALUES (?,?,?,?,?,?)",
+                          (pid, no, day(d), q, z, b)).lastrowid
+        log(con, "IN", pid, no, q, note or f"Nhập kho vào {z}-{b:02d} (dữ liệu mẫu)", f"{day(-ago)}T08:30:00", bid=bid)
+    # 3 đơn đã giao: soạn FEFO + xuất bằng hàm thật, rồi lùi giờ các dòng OUT về ngày xuất trong quá khứ
+    for so_id, ago, on_time in [(7, 2, 0), (6, 1, 1), (8, 1, 1)]:   # SO-007 giao trễ để OTIF < 100%
+        last = con.execute("SELECT COALESCE(MAX(id),0) FROM txs").fetchone()[0]
+        con.execute("UPDATE sos SET status='new' WHERE id=?", (so_id,))
+        do_pick(con, so_id)
+        do_ship(con, so_id, "51C-123.45")
+        con.execute("UPDATE sos SET status='delivered', on_time=? WHERE id=?", (on_time, so_id))
+        con.execute("UPDATE txs SET ts=? WHERE id>?", (f"{day(-ago)}T14:00:00", last))

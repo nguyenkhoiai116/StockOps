@@ -110,7 +110,7 @@ def do_ship(con, so_id, plate):
         raise ValueError(f"Lô {', '.join(old)} đã hết hạn sau khi soạn. Bấm 'Soạn lại' để chọn lô còn hạn theo FEFO")
     for pk in pks:
         con.execute("UPDATE batches SET qty=qty-?, reserved=reserved-? WHERE id=?", (pk["qty"], pk["qty"], pk["batch_id"]))
-        log(con, "OUT", so["product_id"], pk["batch_no"], -pk["qty"], f"Xuất cho {so['so_no']}")
+        log(con, "OUT", so["product_id"], pk["batch_no"], -pk["qty"], f"Xuất cho {so['so_no']}", bid=pk["batch_id"])
     con.execute("UPDATE sos SET status='shipping', plate=? WHERE id=?", (plate, so_id))
 
 
@@ -237,7 +237,15 @@ def do_adjust(con, bid, delta, note):
     if delta > 0 and zone_used(con, b["zone"]) + delta > b["cap"]:
         raise ValueError(f"{b['zname']} không đủ sức chứa")
     con.execute("UPDATE batches SET qty=? WHERE id=?", (new, bid))
-    log(con, "ADJ", b["product_id"], b["batch_no"], delta, note)
+    log(con, "ADJ", b["product_id"], b["batch_no"], delta, note, bid=bid)
+
+
+def ledger_gaps(con):
+    """Đối soát sổ giao dịch với tồn: các lô có SUM(txs.qty) khác batches.qty. Rỗng = sổ khớp.
+    Dùng cho test và lệnh `python database.py check`."""
+    return rows(con, """SELECT b.id, b.batch_no, b.qty, COALESCE(SUM(t.qty), 0) AS ledger
+                        FROM batches b LEFT JOIN txs t ON t.batch_id = b.id
+                        GROUP BY b.id HAVING b.qty != COALESCE(SUM(t.qty), 0) ORDER BY b.id""")
 
 
 # ---------- Khung chạy nghiệp vụ trong transaction ----------
