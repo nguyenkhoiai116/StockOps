@@ -1,14 +1,14 @@
 // Feature: Soạn hàng - đơn bán và FEFO.
-import { api, table, form, soTag, pickList, dmy, num, esc } from "../core.js";
+import { api, can, table, form, soTag, pickList, dmy, num, esc } from "../core.js";
 
 // Vẽ bảng đơn bán kèm các lô đã chọn; đơn mới có nút "Soạn FEFO"
 async function render() {
   const d = await api("/orders");
   const body = d.orders.map((o) => `<tr><td><b>${o.so_no}</b><small>${esc(o.customer)}</small></td>
     <td>${esc(o.sku)} ${esc(o.name)}${pickList(o)}</td><td class="r">${num(o.qty)}</td><td>${dmy(o.due)}</td><td>${soTag(o.status)}</td>
-    <td class="r">${o.status === "new" ? `<button class="btn sm" onclick="run(() => api('/orders/${o.id}/pick', 'POST'), 'Đã chọn lô theo FEFO')">Soạn FEFO</button>` : ""}</td></tr>`).join("");
+    <td class="r">${o.status === "new" && can("so.pick") ? `<button class="btn sm" onclick="run(() => api('/orders/${o.id}/pick', 'POST'), 'Đã chọn lô theo FEFO')">Soạn FEFO</button>` : ""}</td></tr>`).join("");
   return `<div class="head"><div><h1>Soạn hàng</h1><p class="sub">FEFO: hệ thống tự chọn lô hết hạn sớm nhất, bỏ lô hết hạn, có thể chia nhiều lô</p></div>
-    <button class="btn" onclick="soAdd()">Tạo đơn bán</button></div>
+    ${can("so.create") ? `<button class="btn" onclick="soAdd()">Tạo đơn bán</button>` : ""}</div>
     <div class="card">${table(["Đơn", "Sản phẩm / lô được chọn", "SL*", "Hạn giao", "Trạng thái", ""], body)}</div>`;
 }
 
@@ -22,4 +22,4 @@ async function soAdd() {
 }
 Object.assign(window, { soAdd });
 
-export const page = { id: "pick", name: "Soạn hàng", desc: "Đơn bán và FEFO", icon: "pick", render };
+export const page = { perm: ["so.pick", "so.create"], id: "pick", name: "Soạn hàng", desc: "Đơn bán và FEFO", icon: "pick", render };

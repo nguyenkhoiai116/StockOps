@@ -1,5 +1,5 @@
 // Feature: Nhập hàng - PO và nhận hàng theo lô.
-import { api, table, form, dmy, num, esc } from "../core.js";
+import { api, can, table, form, dmy, num, esc } from "../core.js";
 
 let pos = []; // giữ danh sách PO để nút "Nhận hàng" lấy lại thông tin
 
@@ -9,9 +9,9 @@ async function render() {
   const body = pos.map((o) => `<tr><td><b>${o.po_no}</b></td><td>${esc(o.sku)} ${esc(o.name)}<small>${esc(o.supplier)}</small></td>
     <td class="r">${num(o.qty)}</td><td>${dmy(o.eta)}</td>
     <td>${o.status === "pending" ? `<span class="tag warn">Chờ nhận</span>` : `<span class="tag ok">Đã nhận ${num(o.recv)}</span>${o.dmg ? ` <span class="tag bad">Hỏng ${o.dmg}</span>` : ""}`}</td>
-    <td class="r">${o.status === "pending" ? `<button class="btn sm" onclick="poRecv(${o.id})">Nhận hàng</button>` : ""}</td></tr>`).join("");
+    <td class="r">${o.status === "pending" && can("po.receive") ? `<button class="btn sm" onclick="poRecv(${o.id})">Nhận hàng</button>` : ""}</td></tr>`).join("");
   return `<div class="head"><div><h1>Nhập hàng</h1><p class="sub">Nhận hàng sẽ tạo lô mới và cộng tồn kho</p></div>
-    <button class="btn" onclick="poAdd()">Tạo PO</button></div>
+    ${can("po.create") ? `<button class="btn" onclick="poAdd()">Tạo PO</button>` : ""}</div>
     <div class="card">${table(["PO", "Sản phẩm", "SL đặt*", "Ngày đến", "Trạng thái", ""], body)}</div>`;
 }
 
@@ -36,4 +36,4 @@ function poRecv(id) {
 }
 Object.assign(window, { poAdd, poRecv });
 
-export const page = { id: "inb", name: "Nhập hàng", desc: "PO và nhận hàng theo lô", icon: "inb", render };
+export const page = { perm: ["po.view"], id: "inb", name: "Nhập hàng", desc: "PO và nhận hàng theo lô", icon: "inb", render };

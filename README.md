@@ -1,24 +1,47 @@
 HỆ THỐNG QUẢN LÝ KHO 
 
 === CÁCH CHẠY ===
+Cách nhanh (Windows): bấm đúp file chay.bat.
+  Lần đầu nó tự tạo .venv, cài thư viện, tạo .env, tạo database mẫu
+  và hỏi 1 mật khẩu demo dùng chung cho mọi tài khoản mẫu.
+  Đăng nhập bằng admin (hoặc nhap01, soan01...) với mật khẩu đó.
+
+Cách làm tay:
 1. Cài Python từ python.org (Windows: nhớ tick "Add Python to PATH").
 2. Mở terminal trong thư mục này, gõ:
-       pip install flask
+       pip install -r requirements.txt
+       copy .env.example .env          (rồi điền LLM_API_KEY nếu dùng trợ lý Kvis)
+       python database.py reset        (tạo dữ liệu mẫu + đặt mật khẩu demo)
        python app.py
 3. Mở trình duyệt: http://localhost:5000
    Trên điện thoại cùng Wi-Fi: http://<địa chỉ IP máy tính>:5000
+   (lần đầu Windows hỏi tường lửa: chọn cho phép mạng Private)
 Tắt server: bấm Ctrl+C trong terminal.
+Muốn tự nạp lại khi sửa code: đặt FLASK_DEBUG=1 trong .env.
 
-Làm lại dữ liệu mẫu từ đầu: tắt server, xóa file wms.db, chạy lại.
+=== DATABASE ===
+File wms.db nằm ở thư mục dự án (chạy từ đâu cũng dùng đúng file này).
+       python database.py              xem tình trạng: số bảng, số dòng, migration
+       python database.py backup       sao lưu vào backups/ (server đang chạy vẫn được)
+       python database.py reset        sao lưu rồi làm lại dữ liệu mẫu (tắt server trước)
+       python users.py                 xem tài khoản; python users.py passwd <tên> để đổi mật khẩu
+Đổi cấu trúc bảng: thêm file mới wms/migrations/003_ten.sql (không sửa file cũ),
+server tự chạy khi khởi động.
 
 === CẤU TRÚC THƯ MỤC ===
 app.py                 Khởi động server (chạy file này)
+chay.bat               Chạy nhanh trên Windows (bấm đúp)
+database.py            Xem / sao lưu / làm lại database
+users.py               Đặt mật khẩu tài khoản
+.env.example           Mẫu cấu hình, copy thành .env
 requirements.txt       Thư viện cần cài (flask)
 wms/                   TOÀN BỘ BACKEND
   __init__.py          Tạo app, gắn các chức năng
   db.py                Tiện ích database dùng chung
   core.py              Nghiệp vụ lõi: FEFO, xuất kho, cảnh báo, KPI
-  seed.py              Tạo bảng + dữ liệu mẫu
+  migrate.py           Chạy các file trong migrations/ (cấu trúc bảng)
+  roles.py             Vai trò và quyền (xem docs/roles.md)
+  seed.py              Dữ liệu mẫu
   features/            MỖI CHỨC NĂNG 1 FILE
     dashboard.py   products.py   inbound.py    layout.py
     inventory.py   picking.py    shipping.py   analytics.py
@@ -38,7 +61,7 @@ static/                TOÀN BỘ GIAO DIỆN
 - Đổi màu / hiệu ứng:        static/css/theme.css
 - Sửa 1 chức năng (giao diện): static/js/features/<tên>.js
 - Sửa 1 chức năng (nghiệp vụ): wms/features/<tên>.py
-- Đổi dữ liệu mẫu:            wms/seed.py (rồi xóa wms.db, chạy lại)
+- Đổi dữ liệu mẫu:            wms/seed.py (rồi chạy python database.py reset)
 - Đổi icon:                  thay file trong static/icons/
 
 === THÊM 1 CHỨC NĂNG MỚI ===

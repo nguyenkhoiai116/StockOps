@@ -5,18 +5,21 @@ ghi sổ giao dịch... -> tránh lặp code, sửa 1 chỗ dùng mọi nơi.
 """
 import sqlite3
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 from flask import jsonify
 
-DB = "wms.db"   # file database SQLite, tự tạo ở lần chạy đầu
+ROOT = Path(__file__).resolve().parent.parent   # thư mục dự án
+DB = str(ROOT / "wms.db")   # file database SQLite, tự tạo ở lần chạy đầu; đường dẫn cố định nên chạy từ thư mục nào cũng ra cùng 1 file
 BINS = 12       # số ô chứa (bin) trong mỗi khu kho
 NEAR = 30       # còn <= 30 ngày tới hạn thì coi là "cận date"
 
 
 def db():
     """Mở kết nối database. row_factory giúp đọc cột theo tên (vd r['sku'])."""
-    con = sqlite3.connect(DB)
+    con = sqlite3.connect(DB, timeout=5)   # đợi tối đa 5 giây nếu người khác đang ghi, thay vì báo lỗi ngay
     con.row_factory = sqlite3.Row
+    con.execute("PRAGMA journal_mode=WAL")   # WAL: đang ghi vẫn đọc được, nhiều người dùng cùng lúc ít bị khóa
     return con
 
 

@@ -143,7 +143,7 @@ StockOps/
 ├── wms/
 │   ├── __init__.py  db.py  core.py  seed.py
 │   ├── migrate.py               # chạy migrations theo PRAGMA user_version
-│   ├── migrations/              # 001_base.sql, 002_timeseries.sql, 003_ai.sql ...
+│   ├── migrations/              # 001_base.sql, 002_users.sql, 003_timeseries.sql, 004_ai.sql ...
 │   ├── features/                # (cũ) + ingest.py, ml.py, chat.py
 │   └── ai/
 │       ├── llm.py               # 1 client, cấu hình bằng .env
@@ -338,6 +338,18 @@ StockOps/
 - **Tradeoff:** cần mạng ở lần tải đầu. Cách xếp 2 kệ × 2 tầng × 3 ô là quy ước tạm; màu mức đầy chỉ tính theo khu vì database chưa có sức chứa từng ô.
 - **Revisit when:** có mô hình 3D cụ thể hoặc sơ đồ kệ thật (thêm migration cho kệ, tầng, sức chứa ô); hoặc phải chạy không có Internet (tải Three.js về `static/vendor/`).
 
+### ADR-013: 5 role cố định, quyền khai báo trong `wms/roles.py`
+- **Choice:** bảng `users` (mỗi người 1 role: admin, inbound, storage, picking, shipping); quyền khai báo trong code, không lưu database. Chi tiết: `docs/roles.md`.
+- **Why:** 5 role theo sơ đồ của chủ dự án; < 10 người dùng, quyền ít đổi; để trong code thì test được rằng API nào cũng đã khai báo quyền.
+- **Tradeoff:** đổi quyền phải sửa code; một người không giữ được 2 role.
+- **Revisit when:** cần một người giữ nhiều role, hoặc đổi quyền > 1 lần/tháng.
+
+### ADR-014: Đăng nhập bằng cookie phiên có chữ ký của Flask
+- **Choice:** tài khoản + mật khẩu băm (scrypt của werkzeug), phiên 8 giờ trong cookie HttpOnly, SameSite=Lax; chặn quyền tập trung ở `guard()`, mặc định là chặn. Sai 5 lần thì khóa tạm 5 phút.
+- **Why:** không thêm thư viện hay bảng phiên; khóa tài khoản, đổi role, đổi mật khẩu có hiệu lực ngay vì đọc lại DB mỗi request.
+- **Tradeoff:** bộ đếm sai mật khẩu nằm trong bộ nhớ (mất khi chạy lại, mỗi worker gunicorn đếm riêng). Yêu cầu ghi có `Origin` khác host bị chặn.
+- **Revisit when:** làm `sims/` (store_sim gọi `/api/orders` sẽ bị 401, cần khóa riêng như `X-Ingest-Key`); chạy `web/` ở :3000 (cần cho phép Origin đó); deploy Internet (bật `COOKIE_SECURE=1`, tắt `debug`).
+
 ## Lộ trình triển khai (các bước)
 
 Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
@@ -345,11 +357,11 @@ Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
 | Phase | Nội dung | Tiêu chí xong |
 |---|---|---|
 | **0. Dọn nền** (1–2 buổi) | Bật WAL + `busy_timeout` trong `db()`; viết `migrate.py`, chuyển SCHEMA hiện tại thành `001_base.sql` (xử lý bảng `icons`); `.env` + python-dotenv; `FLASK_DEBUG` từ env; pin `requirements.txt`; 3 test pytest cho `do_pick` (đủ hàng, chia lô, thiếu hàng) | `pytest` xanh; xóa wms.db chạy lại vẫn ra đúng dữ liệu mẫu |
-| **1. Ingest + bảng time-series** (1 buổi) | `002_timeseries.sql`: `stores`, `sensor_readings`, `store_traffic`, `store_sales` (index theo `(key, ts)`); `features/ingest.py` nhận đơn lẻ + theo lô; ingest sensor cập nhật luôn `zones.temp/hum` để `get_alerts()` cũ chạy không cần sửa | `curl` POST 1 reading 10°C vào CHL → Dashboard hiện cảnh báo |
+| **1. Ingest + bảng time-series** (1 buổi) | `003_timeseries.sql`: `stores`, `sensor_readings`, `store_traffic`, `store_sales` (index theo `(key, ts)`); `features/ingest.py` nhận đơn lẻ + theo lô; ingest sensor cập nhật luôn `zones.temp/hum` để `get_alerts()` cũ chạy không cần sửa | `curl` POST 1 reading 10°C vào CHL → Dashboard hiện cảnh báo |
 | **2. temp_sim** (2 buổi) | `sims/common/clock.py`, `client.py`; app 5101 với thanh trượt + nút sự cố; trang "Giám sát nhiệt độ" trong StockOps vẽ biểu đồ 1 giờ gần nhất (polling) | Bấm "hỏng máy nén" → trong ≤ 10s StockOps hiện cảnh báo |
 | **3. store_sim** (2–3 buổi) | App 5102: cửa hàng, lượt khách, bán lẻ, tự đặt SO; `scripts/backfill.py --days 180` | Có ≥ 180 ngày `store_sales`; chạy live x60 trong 10 phút sinh ra SO mới trong trang Soạn hàng |
 | **4. ML** (3–4 buổi) | `ml/features.py`; baseline; train demand + traffic; `evaluate.py` in MAE/WAPE so với baseline; `features/ml.py`; biểu đồ dự báo vs thực tế; gợi ý đặt hàng dùng dự báo (ROP = nhu cầu dự báo trong lead time + safety stock) thay cho `safety*2 - av` | Model thắng baseline trên 28 ngày cuối; API trả dự báo 7 ngày |
-| **5. Agent + tool** (2–3 buổi) | `003_ai.sql` (`chat_logs`, `agent_actions`, `doc_chunks`); `ai/llm.py`, `tools.py` (chỉ đọc), `agent.py`; `/api/chat`; nối `chat.js`; bộ 20 câu hỏi mẫu kèm đáp án | ≥ 16/20 câu trả lời đúng số liệu, mỗi câu ≤ 5 bước tool |
+| **5. Agent + tool** (2–3 buổi) | `004_ai.sql` (`chat_logs`, `agent_actions`, `doc_chunks`); `ai/llm.py`, `tools.py` (chỉ đọc), `agent.py`; `/api/chat`; nối `chat.js`; bộ 20 câu hỏi mẫu kèm đáp án | ≥ 16/20 câu trả lời đúng số liệu, mỗi câu ≤ 5 bước tool |
 | **6. RAG** (2 buổi) | Viết 8–15 tài liệu trong `knowledge/`; `build_index.py`; tool `search_docs`; hiển thị nguồn trích dẫn | Bộ 15 câu hỏi tài liệu: đúng tài liệu nằm trong top-5 ≥ 80% |
 | **7. Đề xuất hành động** (1–2 buổi) | `propose_po`, `propose_adjust`; thẻ xác nhận trong chat; trang lịch sử đề xuất | Hỏi "nên nhập gì?" → thẻ PO đúng SKU/số lượng; bấm xác nhận → PO xuất hiện ở trang Nhập hàng |
 
@@ -379,6 +391,8 @@ Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
 - FOLLOW the per-feature layout: backend blueprint in `wms/features/<name>.py` registered in `wms/__init__.py`; frontend page either in `static/js/features/<name>.js` registered in `static/js/app.js` (vanilla), or in `web/app/<name>/page.tsx` (Next.js).
 - PUT all inventory business rules in `wms/core.py`. Every write MUST run inside a transaction via `core.run()` or `with con:`.
 - NEVER change schema in `seed.py`. ADD a new numbered file in `wms/migrations/` instead.
+- Roles and permissions MUST be defined only in `wms/roles.py`; every new `/api/*` route MUST be listed in `PERMS` there (`python -m unittest discover tests` checks this). NEVER commit passwords or password hashes for sample users.
+- Login and permission checks live in `guard()` (`wms/features/auth.py`), deny by default. Frontend `can()` only hides buttons; NEVER rely on it for security. Use `can()` for every new action button.
 - Simulators in `sims/` MUST NOT import from `wms/` or open `wms.db`. They talk to StockOps only over HTTP (`/api/ingest/*`, `/api/orders`).
 - Backfill mode MUST only write `sensor_readings`, `store_traffic`, `store_sales`. It MUST NOT create orders or touch `batches`.
 - Agent tools MUST be read-only, except `propose_*` tools which only insert into `agent_actions`. NEVER let the LLM call write endpoints directly.
@@ -399,6 +413,8 @@ Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
 | 2026-11-21 | Nối Kvis với OpenRouter | Thêm `wms/ai/llm.py`, `prompts.py`, `features/chat.py`, `.env.example`; ADR-010 (requests thay vì SDK openai); snapshot số liệu tạm thời trước khi có tool calling |
 | 2026-11-25 | Chủ dự án cho phép kết hợp Next.js và React | ADR-011; thêm `web/` (tùy chọn) vào sơ đồ, cấu trúc thư mục và quy tắc; gỡ React khỏi danh sách cấm; backend giữ nguyên |
 | 2026-11-25 | Bố cục kiểu SupplySight, kho 3D cơ bản | ADR-012; `/api/dashboard?days=`, `items`; `core.stock_status()`; `chart.js`, `wh3d.js` |
+| 2026-11-25 | Dữ liệu user và role | ADR-013; `migrate.py`, `001_base.sql`, `002_users.sql`, `roles.py`, `docs/roles.md` |
+| 2026-11-25 | Đăng nhập và chặn quyền | ADR-014; `features/auth.py`, `users.py`, `tests/test_auth.py` |
 
 ---
 To update, run `/planfirst` again.

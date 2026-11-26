@@ -2,7 +2,11 @@
 __pycache__/
 *.pyc
 wms.db
+wms.db-wal
+wms.db-shm
+backups/
 static/uploads/*
 !static/uploads/.gitkeep
 # Bí mật: API key, cấu hình riêng từng máy
 .env
+.secret_key

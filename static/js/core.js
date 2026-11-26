@@ -19,6 +19,13 @@ export const dmyt = (s) => dmy(s) + " " + s.slice(11, 16);
 // esc: chống chèn mã độc khi hiển thị chữ do người dùng nhập
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// ---------- Người đang đăng nhập ----------
+// me: { username, name, role, role_name, perms } hoặc null. Ẩn nút chỉ để gọn mắt; chặn thật nằm ở backend.
+export let me = null;
+export const setMe = (u) => { me = u; };
+// can: người đang đăng nhập có ít nhất 1 trong các quyền này không
+export const can = (...ps) => !!me && ps.some((p) => me.perms.includes(p));
+
 // ---------- Gọi API của Python ----------
 // Gửi request tới /api + path, tự đóng gói body thành JSON; lỗi thì ném Error kèm thông báo của server
 export async function api(path, method = "GET", body) {
@@ -27,6 +34,8 @@ export async function api(path, method = "GET", body) {
     headers: body ? { "Content-Type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
   });
+  // Hết phiên giữa chừng: tải lại trang để về màn hình đăng nhập
+  if (r.status === 401 && me) { location.reload(); return new Promise(() => {}); }
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.error || "Lỗi " + r.status);   // ném đúng lời giải thích của server
   return d;

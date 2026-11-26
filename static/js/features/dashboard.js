@@ -1,5 +1,5 @@
 // Feature: Dashboard tổng quan vận hành.
-import { api, hbar, kpi, capCls, seg, segSet, table, openDrawer, expTag, loc, plain, STAT, toast, vnd, num, dmy, dmyt, esc } from "../core.js";
+import { api, can, hbar, kpi, capCls, seg, segSet, table, openDrawer, expTag, loc, plain, STAT, toast, vnd, num, dmy, dmyt, esc } from "../core.js";
 import { flowChart } from "../chart.js";
 
 let d = null;        // số liệu Dashboard đang hiện
@@ -53,14 +53,14 @@ function itemFilter() {
 // Mở ngăn chi tiết 1 SKU: tồn và các lô đang có
 async function itemShow(sku) {
   const p = d.items.find((x) => x.sku === sku);
-  let inv;
-  try { inv = await api("/inventory"); } catch (x) { return toast(x.message, false); }
-  const lots = inv.batches.filter((b) => b.sku === sku);
+  let inv = null;   // role không được xem tồn theo lô thì chỉ hiện số tổng
+  if (can("inv.view")) try { inv = await api("/inventory"); } catch (x) { return toast(x.message, false); }
+  const lots = inv ? inv.batches.filter((b) => b.sku === sku) : [];
   openDrawer(sku, `<dl class="kv"><dt>Sản phẩm</dt><dd>${esc(p.name)}</dd><dt>Trạng thái</dt><dd>${stTag(p.status)}</dd>
     <dt>Thực có</dt><dd>${num(p.qty)} thùng</dd><dt>Khả dụng</dt><dd><b>${num(p.av)} thùng</b></dd><dt>Tồn an toàn</dt><dd>${num(p.safety)} thùng</dd></dl>
-    <h3>Các lô đang có</h3><ul class="list">${lots.map((b) => `<li>${loc(b.zone, b.bin)} <b>${esc(b.batch_no)}</b> ${expTag(b.exp, inv.today, inv.near)}
-      <small>${num(b.qty)} thùng, hạn dùng ${dmy(b.exp)}</small></li>`).join("") || "<li>Không còn lô nào</li>"}</ul>
-    ${lots.length ? `<div class="acts"><a class="btn" href="#/map?q=${encodeURIComponent(sku)}">Xem trong kho</a></div>` : ""}`);
+    ${inv ? `<h3>Các lô đang có</h3><ul class="list">${lots.map((b) => `<li>${loc(b.zone, b.bin)} <b>${esc(b.batch_no)}</b> ${expTag(b.exp, inv.today, inv.near)}
+      <small>${num(b.qty)} thùng, hạn dùng ${dmy(b.exp)}</small></li>`).join("") || "<li>Không còn lô nào</li>"}</ul>` : ""}
+    ${lots.length && can("map.view") ? `<div class="acts"><a class="btn" href="#/map?q=${encodeURIComponent(sku)}">Xem trong kho</a></div>` : ""}`);
 }
 Object.assign(window, { flowMode, flowDays, itemFilter });
 
@@ -115,4 +115,4 @@ function after() {
 }
 function leave() { if (stop) stop(); stop = null; }
 
-export const page = { id: "dash", name: "Tổng quan", desc: "Chỉ số và cảnh báo", icon: "dashboard", render, after, leave };
+export const page = { perm: ["dash.view"], id: "dash", name: "Tổng quan", desc: "Chỉ số và cảnh báo", icon: "dashboard", render, after, leave };

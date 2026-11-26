@@ -1,5 +1,5 @@
 // Feature: Phân tích - KPI và báo cáo.
-import { api, icon, hbar, kpi, capCls, SO, vnd, num } from "../core.js";
+import { api, can, icon, hbar, kpi, capCls, SO, vnd, num } from "../core.js";
 
 // Vẽ trang Phân tích: 4 thẻ KPI và các biểu đồ thanh ngang theo nhóm hàng, SKU, trạng thái đơn, khu kho
 async function render() {
@@ -10,7 +10,7 @@ async function render() {
     return arr.map((x) => hbar(name(x), (x.val / m) * 100, fmt(x.val), x.val === m ? "top-v" : "")).join("");
   };
   return `<div class="head"><div><h1>Phân tích vận hành</h1><p class="sub">Tổng hợp từ dữ liệu hiện tại</p></div>
-    <a class="btn ghost" href="/api/export/inventory.csv">${icon("download")} Xuất CSV tồn kho</a></div>
+    ${can("inv.export") ? `<a class="btn ghost" href="/api/export/inventory.csv">${icon("download")} Xuất CSV tồn kho</a>` : ""}</div>
     <div class="grid">${kpi("OTIF", num(k.otif) + "%", "Đúng hạn / đã giao")}${kpi("Tỷ lệ đáp ứng", num(k.fill) + "%", "Đơn đã đáp ứng / tổng đơn")}
       ${kpi("Sức chứa kho", num(k.cap_pct) + "%", "Thùng đang chứa / sức chứa")}${kpi("Giá trị hàng hết hạn", vnd(k.expired_value), "Nguy cơ hủy")}</div>
     <div class="cols2">
@@ -21,4 +21,4 @@ async function render() {
     </div>`;
 }
 
-export const page = { id: "ana", name: "Phân tích", desc: "KPI và báo cáo", icon: "ana", render };
+export const page = { perm: ["ana.view"], id: "ana", name: "Phân tích", desc: "KPI và báo cáo", icon: "ana", render };

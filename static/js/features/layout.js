@@ -158,4 +158,4 @@ async function render() {
       <aside class="card wh-info" id="whInfo" aria-live="polite"></aside></div>`;
 }
 
-export const page = { id: "map", name: "Sơ đồ kho", desc: "Vị trí hàng 2D, 3D", icon: "map", wide: true, render, after: stage, leave: drop };
+export const page = { perm: ["map.view"], id: "map", name: "Sơ đồ kho", desc: "Vị trí hàng 2D, 3D", icon: "map", wide: true, render, after: stage, leave: drop };
