@@ -20,7 +20,6 @@ class TestAuth(unittest.TestCase):
     def setUp(self):
         self.old, self.tmp = dbm.DB, tempfile.mkdtemp()
         dbm.DB = os.path.join(self.tmp, "test.db")
-        auth.fails.clear()
         self.app = create_app()
         for u in WHO.values():
             self.sql(lambda con, u=u: set_password(con, u, PW))
@@ -89,9 +88,25 @@ class TestAuth(unittest.TestCase):
             self.login("admin", "sai")
         self.assertEqual(self.login("admin")[1].status_code, 429)
         self.assertEqual(self.login("nhap01")[1].status_code, 200)   # tài khoản khác không bị ảnh hưởng
-        for k in auth.fails:
-            auth.fails[k] = [t - auth.WAIT for t in auth.fails[k]]
+        self.sql(lambda con: con.execute("UPDATE login_fails SET ts=ts-?", (auth.WAIT,)))   # giả lập hết 5 phút
         self.assertEqual(self.login("admin")[1].status_code, 200)
+
+    def test_khoa_theo_may_khi_doan_nhieu_tai_khoan(self):
+        for i in range(auth.MAX_IP):
+            self.login(f"doan{i}", "sai")
+        self.assertEqual(self.login("admin")[1].status_code, 429)   # máy này đã sai 20 lần
+
+    def test_dem_chung_giua_cac_tien_trinh(self):
+        for _ in range(auth.MAX_USER):
+            self.login("admin", "sai")
+        other = create_app()   # như 1 worker gunicorn khác: app mới, cùng database
+        r = other.test_client().post("/api/login", json={"user": "admin", "pass": PW})
+        self.assertEqual(r.status_code, 429)
+
+    def test_dang_nhap_dung_xoa_lan_sai(self):
+        self.login("admin", "sai")
+        self.login("admin")
+        self.sql(lambda con: self.assertEqual(con.execute("SELECT COUNT(*) FROM login_fails").fetchone()[0], 0))
 
     def test_dang_xuat(self):
         c, _ = self.login("admin")

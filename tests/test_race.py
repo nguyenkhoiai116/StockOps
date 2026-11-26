@@ -13,7 +13,6 @@ import unittest
 
 from wms import core, create_app
 from wms import db as dbm
-from wms.features import auth
 from wms.users import set_password
 
 PW = secrets.token_urlsafe(12)   # mật khẩu thử, sinh ngẫu nhiên mỗi lần chạy
@@ -36,7 +35,6 @@ class RaceTest(unittest.TestCase):
     def setUp(self):
         self.old, self.tmp = dbm.DB, tempfile.mkdtemp()
         dbm.DB = os.path.join(self.tmp, "test.db")
-        auth.fails.clear()
         self.app = create_app()
         con = dbm.db()
         with con:

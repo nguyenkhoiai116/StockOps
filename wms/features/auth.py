@@ -18,8 +18,7 @@ from ..users import MIN, set_password
 bp = Blueprint("auth", __name__)
 
 WAIT = 300                # khóa tạm 5 phút khi sai nhiều lần
-MAX_USER, MAX_IP = 5, 20  # số lần sai tối đa: của 1 tài khoản từ 1 máy / của 1 máy
-fails = {}                # (ip, tài khoản hoặc None) -> thời điểm các lần sai gần đây
+MAX_USER, MAX_IP = 5, 20  # số lần sai tối đa: của 1 tài khoản từ 1 máy / của 1 máy (bảng login_fails)
 DUMMY = generate_password_hash("x")   # để tài khoản không tồn tại cũng tốn thời gian kiểm tra như thật
 
 
@@ -69,13 +68,10 @@ def info(u):
                   "perms": [p for p, x in PERMS.items() if u["role"] in x[1]]}
 
 
-def recent(k, now):
-    """Số lần sai còn trong thời gian khóa."""
-    fails[k] = [t for t in fails.get(k, []) if now - t < WAIT]
-    if not fails[k]:
-        del fails[k]
-        return 0
-    return len(fails[k])
+def recent(con, ip, now, name=None):
+    """Số lần sai còn trong thời gian khóa: của tài khoản name từ máy ip, hoặc của cả máy ip (name=None)."""
+    sql = "SELECT COUNT(*) FROM login_fails WHERE ip=? AND ts>?" + (" AND username=?" if name is not None else "")
+    return con.execute(sql, (ip, now - WAIT) + ((name,) if name is not None else ())).fetchone()[0]
 
 
 @bp.get("/api/me")
@@ -89,21 +85,24 @@ def api_login():
     """Đăng nhập. Báo lỗi chung chung để không lộ tài khoản nào có thật."""
     d = body()
     name, pw = str(d.get("user") or "").strip().lower()[:64], str(d.get("pass") or "")[:256]
-    now, ip = time.time(), request.remote_addr
-    if len(fails) > 1000:   # dọn bộ nhớ
-        for k in list(fails):
-            recent(k, now)
-    if recent((ip, name), now) >= MAX_USER or recent((ip, None), now) >= MAX_IP:
-        return bad("Sai quá nhiều lần, thử lại sau 5 phút", 429)
+    now, ip = time.time(), request.remote_addr or "?"
     con = db()
-    u = con.execute("SELECT * FROM users WHERE username=? AND active=1", (name,)).fetchone()
-    con.close()
-    ok = check_password_hash(u["pw_hash"] if u and u["pw_hash"] else DUMMY, pw)
-    if not (ok and u and u["pw_hash"]):
-        for k in ((ip, name), (ip, None)):
-            fails.setdefault(k, []).append(now)
-        return bad("Sai tài khoản hoặc mật khẩu", 401)
-    fails.pop((ip, name), None)
+    try:
+        with con:   # dọn các lần sai đã quá thời gian khóa
+            con.execute("DELETE FROM login_fails WHERE ts<=?", (now - WAIT,))
+        if recent(con, ip, now, name) >= MAX_USER or recent(con, ip, now) >= MAX_IP:
+            return bad("Sai quá nhiều lần, thử lại sau 5 phút", 429)
+        u = con.execute("SELECT * FROM users WHERE username=? AND active=1", (name,)).fetchone()
+        # Kiểm mật khẩu ngoài transaction: băm mật khẩu mất ~0,1 giây, không giữ khóa ghi DB trong lúc đó
+        ok = check_password_hash(u["pw_hash"] if u and u["pw_hash"] else DUMMY, pw)
+        if not (ok and u and u["pw_hash"]):
+            with con:
+                con.execute("INSERT INTO login_fails (ip, username, ts) VALUES (?,?,?)", (ip, name, now))
+            return bad("Sai tài khoản hoặc mật khẩu", 401)
+        with con:   # đăng nhập đúng: xóa các lần sai của tài khoản này từ máy này
+            con.execute("DELETE FROM login_fails WHERE ip=? AND username=?", (ip, name))
+    finally:
+        con.close()
     start(u)
     return jsonify(user=info(u))
 

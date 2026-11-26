@@ -11,7 +11,6 @@ import unittest
 
 from wms import create_app
 from wms import db as dbm
-from wms.features import auth
 from wms.users import set_password
 
 PW = secrets.token_urlsafe(12)
@@ -26,7 +25,6 @@ class JsonTest(unittest.TestCase):
     def setUp(self):
         self.old, self.tmp = dbm.DB, tempfile.mkdtemp()
         dbm.DB = os.path.join(self.tmp, "test.db")
-        auth.fails.clear() if hasattr(auth, "fails") else None
         self.app = create_app()
         con = dbm.db()
         with con:
