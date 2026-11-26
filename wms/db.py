@@ -19,6 +19,9 @@ def db():
     con = sqlite3.connect(DB, timeout=5)   # đợi tối đa 5 giây nếu người khác đang ghi, thay vì báo lỗi ngay
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")   # WAL: đang ghi vẫn đọc được, nhiều người dùng cùng lúc ít bị khóa
+    # Bật kiểm tra khóa ngoại (REFERENCES). SQLite mặc định TẮT và phải bật lại ở MỖI kết nối;
+    # không có dòng này thì PO/đơn trỏ tới SKU không tồn tại vẫn ghi được rồi "biến mất" khỏi các danh sách JOIN.
+    con.execute("PRAGMA foreign_keys=ON")
     return con
 
 

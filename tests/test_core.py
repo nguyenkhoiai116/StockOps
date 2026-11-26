@@ -318,3 +318,24 @@ class CreatePoTest(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ForeignKeyTest(Base):
+    def test_db_chan_lo_tro_toi_sku_khong_co(self):
+        import sqlite3
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.con:
+                self.con.execute("INSERT INTO batches (product_id,batch_no,exp,qty,zone,bin) VALUES (99999,'X','2099-01-01',1,'DRY',90)")
+
+    def test_du_lieu_mau_khong_vi_pham_khoa_ngoai(self):
+        self.assertEqual(self.con.execute("PRAGMA foreign_key_check").fetchall(), [])
+
+    def test_api_tao_don_sku_sai_bao_400(self):
+        r = self.admin().post("/api/orders", json={"customer": "Khách", "product_id": 99999, "qty": 5})
+        self.assertEqual((r.status_code, r.get_json()["error"]), (400, "Sản phẩm không tồn tại"))
+
+    def test_api_tao_don_danh_so_tiep(self):
+        pid = self.product()
+        n = self.one("SELECT COUNT(*) FROM sos")[0]
+        self.assertEqual(self.admin().post("/api/orders", json={"customer": "Khách", "product_id": pid, "qty": 5}).status_code, 200)
+        self.assertEqual(self.one("SELECT so_no FROM sos ORDER BY id DESC LIMIT 1"), (f"SO-{n + 1:03d}",))

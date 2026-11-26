@@ -179,6 +179,17 @@ def create_po(con, pid, qty, eta):
     return no
 
 
+def create_so(con, pid, qty, customer, due):
+    """Tạo đơn bán mới, tự đánh số SO-xxx; trả về số SO. Chưa giữ hàng (giữ hàng ở do_pick)."""
+    if qty <= 0 or not customer:
+        raise ValueError("Cần tên khách hàng và số lượng > 0")
+    if not con.execute("SELECT 1 FROM products WHERE id=?", (pid,)).fetchone():
+        raise ValueError("Sản phẩm không tồn tại")
+    no = f"SO-{con.execute('SELECT COUNT(*) FROM sos').fetchone()[0] + 1:03d}"
+    con.execute("INSERT INTO sos (so_no,customer,product_id,qty,due) VALUES (?,?,?,?,?)", (no, customer, pid, qty, due))
+    return no
+
+
 def do_adjust(con, bid, delta, note):
     """Điều chỉnh tồn 1 lô (kiểm kê lệch, hàng vỡ, hủy lô); delta âm = giảm.
     Luật: không âm, không thấp hơn phần đã giữ cho đơn, không vượt sức chứa khu."""
