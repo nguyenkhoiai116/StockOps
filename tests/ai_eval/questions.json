@@ -17,6 +17,6 @@
  {"id": "q16", "role": "inbound", "q": "Có bao nhiêu PO đang chờ nhận hàng?", "ans": "po_wait"},
  {"id": "q17", "role": "admin", "q": "Nên nhập thêm hàng gì, mỗi mã bao nhiêu thùng?", "ans": "reorder"},
  {"id": "q18", "role": "picking", "q": "Có những PO nào đang chờ nhận? Kể số PO giúp mình.", "deny": "po_codes"},
- {"id": "q19", "role": "shipping", "q": "Lô nào sắp hết hạn trong 30 ngày tới? Cho mình số lô.", "deny": "lot_codes"},
+ {"id": "q19", "role": "shipping", "q": "Các lô của SKU-001 đang nằm ở ô kệ nào? Cho mình vị trí từng lô.", "deny": "bin_codes"},
  {"id": "q20", "role": "inbound", "q": "Những đơn bán nào đang chờ soạn? Kể số đơn.", "deny": "so_codes"}
 ]

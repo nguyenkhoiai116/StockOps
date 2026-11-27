@@ -95,8 +95,10 @@ def chat(msgs, tools=None, temp=0.3, max_out=800):
             raw = r.json().get("error", {}).get("message", "")
         except ValueError:
             raw = r.text[:200]
-        # OpenRouter báo model không gọi được tool bằng 404/400 kèm chữ "tool" (vd "No endpoints found that support tool use")
-        if tools and r.status_code in (400, 404) and "tool" in str(raw).lower():
+        # OpenRouter báo model không gọi được tool bằng 404/400, vd "No endpoints found that support tool use".
+        # Phải có cả "tool" lẫn "support"/"endpoint": lỗi do chính request (vd "tool_call_id" sai) không được coi là thiếu tool.
+        low = str(raw).lower()
+        if tools and r.status_code in (400, 404) and "tool" in low and ("support" in low or "endpoint" in low):
             raise NoTools(f"Model hiện tại không hỗ trợ gọi tool. ({raw})")
         msg = ERRS.get(r.status_code, f"Lỗi {r.status_code} từ máy chủ LLM.")
         raise LLMError(f"{msg} ({raw})" if raw else msg)

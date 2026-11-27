@@ -147,7 +147,10 @@ class AgentTest(unittest.TestCase):
         self.assertIn("SỐ LIỆU KHO HIỆN TẠI", f.seen[1][0][0]["content"])
         self.assertEqual(r["mode"], "snapshot")
         self.assertTrue(r["reply"].startswith("Theo ảnh chụp") and r["reply"].endswith(agent.NOTE))
-        self.assertEqual((self.log()["mode"], self.log()["error"]), ("snapshot", None))
+        # Lưu lại lý do lui về snapshot: lỗi do chính request của mình cũng có thể bị nhận nhầm là "model không hỗ trợ tool"
+        lg = self.log()
+        self.assertEqual(lg["mode"], "snapshot")
+        self.assertTrue(lg["error"].startswith("Lui về snapshot: ") and "không hỗ trợ gọi tool" in lg["error"], lg["error"])
 
     def test_llm_tools_0(self):
         os.environ["LLM_TOOLS"] = "0"
@@ -184,6 +187,8 @@ class AgentTest(unittest.TestCase):
         sys = f.seen[0][0][0]["content"]
         for s in [dbm.day(), "Người Soạn Thử", "KHÔNG được xem", "Xem đơn mua (PO)"]:
             self.assertIn(s, sys)
+        # KPI và cảnh báo (kể cả số lô cận date, số PO chờ) mọi role đều thấy ở trang Tổng quan -> không được từ chối
+        self.assertIn("trang Tổng quan", sys)
         f = Fake(reply("X"))
         self.ask(f)
         self.assertNotIn("KHÔNG được xem", f.seen[0][0][0]["content"])

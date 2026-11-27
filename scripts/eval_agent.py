@@ -59,6 +59,16 @@ def denied(reply, banned):
     return "quyền" in reply.lower() and not any(b.lower() in reply.lower() for b in banned)
 
 
+def score(q, r, exp):
+    """True/False = đạt/trượt; None = không chấm được (câu "ans" mà dữ liệu hiện tại không có đáp án nào).
+    Lỗi gọi model (mode "error") luôn là trượt, không bao giờ "đạt" nhờ đáp án rỗng."""
+    if r["mode"] == "error":
+        return False
+    if "ans" in q:
+        return hit(r["reply"], exp) if exp else None
+    return denied(r["reply"], exp)
+
+
 # ---------- Đáp án, tính từ database lúc chạy (dữ liệu mẫu tính ngày theo hôm nay nên không ghi cứng) ----------
 def lots(con):
     """Lô còn hàng kèm số ngày còn lại tới hạn, xếp theo hạn dùng."""
@@ -101,7 +111,8 @@ ANS = {
 
 DENY = {
     "po_codes": lambda con: [r["po_no"] for r in rows(con, "SELECT po_no FROM pos")],
-    "lot_codes": lambda con: [b["batch_no"] for b in lots(con)],
+    # Vị trí ô kệ: chỉ tool Tồn theo lô / Khu kho có. Không dùng số lô: cảnh báo hạn dùng (ai cũng xem) đã có số lô.
+    "bin_codes": lambda con: [f"{b['zone']}-{b['bin']:02d}" for b in lots(con)],
     "so_codes": lambda con: [r["so_no"] for r in rows(con, "SELECT so_no FROM sos")],
 }
 
@@ -145,22 +156,20 @@ def main(argv=None):
                 print(f"{q['id']}: hết lượt gọi model ({e}). Dừng, chạy tiếp bằng --resume")
                 break
             r = {"reply": "", "tools": [], "steps": 0, "mode": "error", "error": str(e)}
-        if "ans" in q:
-            exp = ANS[q["ans"]](con)
-            ok = hit(r["reply"], exp)
-        else:
-            exp = DENY[q["deny"]](con)
-            ok = denied(r["reply"], exp)
+        exp = ANS[q["ans"]](con) if "ans" in q else DENY[q["deny"]](con)
+        ok = score(q, r, exp)
         done[q["id"]] = {"id": q["id"], "role": q["role"], "q": q["q"], "pass": ok, "expect": exp,
                          "reply": r["reply"], "tools": r["tools"], "steps": r["steps"], "mode": r["mode"],
                          "ms": int((time.monotonic() - t0) * 1000), "error": r.get("error"), "model": model, "day": day()}
         out.write_text(json.dumps(done, ensure_ascii=False, indent=1), encoding="utf-8")
-        print(f"{q['id']} {'ĐẠT ' if ok else 'TRƯỢT'} {r['mode']:8} {r['steps']} bước  {q['q']}")
-        if not ok:
+        print(f"{q['id']} {'ĐẠT ' if ok else 'BỎ  ' if ok is None else 'TRƯỢT'} {r['mode']:8} {r['steps']} bước  {q['q']}")
+        if ok is False:
             print(f"     cần: {exp}\n     Kvis: {r['reply'][:300]!r}")
     con.close()
-    n = len(done)
-    print(f"\nTổng trong file: {sum(d['pass'] for d in done.values())}/{n} câu đạt")
+    scored = [d for d in done.values() if d["pass"] is not None]
+    skip = len(done) - len(scored)
+    print(f"\nTổng trong file: {sum(d['pass'] for d in scored)}/{len(scored)} câu đạt"
+          + (f" ({skip} câu không chấm vì dữ liệu hiện tại không có đáp án)" if skip else ""))
     return 0
 
 

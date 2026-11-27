@@ -34,6 +34,8 @@ def agent_system(user):
     out = [AGENT, "", f"Hôm nay: {day()}. Người hỏi: {user['name']} (vai trò: {ROLES.get(role, role)})."]
     if deny:
         out.append("Role này KHÔNG được xem: " + "; ".join(deny) + ". Hỏi tới các dữ liệu đó thì trả lời là không có quyền xem.")
+        out.append("Riêng Chỉ số KPI và Cảnh báo (kể cả số lô trong cảnh báo hạn dùng, số PO chờ nhận, số đơn chưa giao) "
+                   "thì mọi role đều xem được ở trang Tổng quan: tool trả về gì thì cứ trả lời bình thường.")
     return "\n".join(out)
 
 SYSTEM = """Bạn là Kvis, trợ lý AI của hệ thống quản lý kho FMCG StockOps.

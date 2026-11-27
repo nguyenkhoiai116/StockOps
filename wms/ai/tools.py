@@ -135,7 +135,7 @@ def t_orders(con, status=None, sku=None, customer=None):
         sql, args = sql + " AND s.status=?", [*args, status]
     if sku:
         sql, args = sql + " AND UPPER(p.sku)=?", [*args, sku.upper()]
-    rs = rows(con, sql + " ORDER BY s.id", args)
+    rs = rows(con, sql + " ORDER BY s.due, s.id", args)   # sắp tới hạn giao nằm đầu: danh sách dài bị cắt vẫn giữ đơn gấp
     return listing([r for r in rs if not customer or plain(customer) in plain(r["customer"])])
 
 
@@ -146,7 +146,7 @@ def t_pos(con, status=None, sku=None):
         sql, args = sql + " AND o.status=?", [*args, status]
     if sku:
         sql, args = sql + " AND UPPER(p.sku)=?", [*args, sku.upper()]
-    return listing(rows(con, sql + " ORDER BY o.id", args))
+    return listing(rows(con, sql + " ORDER BY o.eta, o.id", args))   # sắp về nằm đầu
 
 
 def t_reorder(con):
@@ -179,11 +179,13 @@ TOOLS = {
                                            "delivered (đã giao), cancelled (đã hủy)",
                                            "new", "picked", "shipping", "delivered", "cancelled"),
                                "sku": SKU, "customer": S("Tìm theo tên khách hàng, không dấu cũng được")},
-                       desc="Đơn bán: số đơn, khách, SKU, số thùng, hạn giao, trạng thái, biển số xe, giao đúng hạn (1/0)."),
+                       desc="Đơn bán, xếp theo hạn giao sớm nhất trước: số đơn, khách, SKU, số thùng, hạn giao, trạng thái, "
+                            "biển số xe, giao đúng hạn (1/0)."),
     "get_pos": dict(perm="po.view", label="Đơn mua (PO)", fn=t_pos,
                     params={"status": E("Lọc trạng thái: pending (chờ nhận), received (đã nhận)", "pending", "received"),
                             "sku": SKU},
-                    desc="Đơn mua hàng (PO): số PO, SKU, số thùng đặt, ngày dự kiến đến, trạng thái, số đạt, số hỏng khi nhận."),
+                    desc="Đơn mua hàng (PO), xếp theo ngày dự kiến đến sớm nhất trước: số PO, SKU, số thùng đặt, "
+                         "ngày dự kiến đến, trạng thái, số đạt, số hỏng khi nhận."),
     "get_reorder": dict(perm="dash.view", label="Gợi ý đặt hàng", fn=t_reorder, params={},
                         desc="SKU dưới tồn an toàn kèm số thùng đang chờ trong PO và số thùng nên đặt thêm "
                              "(qty = 0 nghĩa là PO đang chờ đã đủ bù). Dùng khi được hỏi nên nhập gì."),

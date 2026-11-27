@@ -91,6 +91,19 @@ class ToolsTest(unittest.TestCase):
         self.assertTrue(all(x["status"] == "new" for x in self.call("get_orders", '{"status": "new"}')["rows"]))
         self.assertTrue(all(x["status"] == "pending" for x in self.call("get_pos", '{"status": "PENDING"}')["rows"]))
 
+    def test_don_va_po_xep_theo_han(self):
+        # Danh sách bị cắt khi dài -> phải xếp theo hạn (sắp tới hạn nằm đầu), không theo thứ tự nhập
+        pid = self.con.execute("SELECT id FROM products WHERE sku='SKU-T'").fetchone()[0]
+        with self.con:
+            dbm.lock(self.con)
+            for no, d in [("SO-TB", 5), ("SO-TA", 1)]:
+                self.con.execute("INSERT INTO sos (so_no,customer,product_id,qty,due) VALUES (?,?,?,?,?)",
+                                 (no, "Khách thử", pid, 1, dbm.day(d)))
+            for no, d in [("PO-TB", 5), ("PO-TA", 1)]:
+                self.con.execute("INSERT INTO pos (po_no,product_id,qty,eta) VALUES (?,?,?,?)", (no, pid, 1, dbm.day(d)))
+        self.assertEqual([x["so_no"] for x in self.call("get_orders", '{"sku": "SKU-T"}')["rows"]], ["SO-TA", "SO-TB"])
+        self.assertEqual([x["po_no"] for x in self.call("get_pos", '{"sku": "SKU-T"}')["rows"]], ["PO-TA", "PO-TB"])
+
     def test_cat_theo_so_dong(self):
         n = self.con.execute("SELECT COUNT(*) FROM batches WHERE qty>0").fetchone()[0]
         with mock.patch.object(tools, "MAX_ROWS", 3):

@@ -41,7 +41,8 @@ def ask(user, text, hist):
         else:
             try:
                 loop(con, user, text, hist, st)
-            except llm.NoTools:
+            except llm.NoTools as e:
+                st["error"] = f"Lui về snapshot: {e}"   # giữ lý do để biết model thật sự thiếu tool hay request của mình sai
                 snap(con, user, text, hist, st)
     except Exception as e:
         st["error"] = str(e) or type(e).__name__

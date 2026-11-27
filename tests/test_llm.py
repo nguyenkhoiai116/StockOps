@@ -66,6 +66,13 @@ class LlmTest(unittest.TestCase):
             self.run_with(r)
         self.assertNotIsInstance(e.exception, llm.NoTools)
 
+    def test_loi_tool_call_id_khong_phai_notools(self):
+        # Lỗi do chính request của mình (vd tool_call_id sai) có chữ "tool" nhưng không phải model thiếu tool
+        r = resp(400, err="Invalid parameter: messages[3].tool_call_id does not match any tool call")
+        with self.assertRaises(llm.LLMError) as e:
+            self.run_with(r, tools=TOOLS)
+        self.assertNotIsInstance(e.exception, llm.NoTools)
+
 
 if __name__ == "__main__":
     unittest.main()
