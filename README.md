@@ -114,7 +114,7 @@ Muốn chạy model trên máy bằng **LM Studio**: xem phần mẫu trong `.en
 | `FLASK_DEBUG` | `0` | `1` = tự nạp lại khi sửa code + trang lỗi chi tiết. Để `0` khi cho người khác vào qua Wi-Fi |
 | `LLM_BASE_URL` | OpenRouter | Địa chỉ dịch vụ LLM (chuẩn OpenAI) |
 | `LLM_API_KEY` | trống | Key của dịch vụ LLM |
-| `LLM_MODEL` | `openrouter/free` | Tên model |
+| `LLM_MODEL` | `google/gemma-4-31b-it:free` | Tên model, phải hỗ trợ gọi tool |
 
 ---
 

@@ -18,9 +18,10 @@ USERS = [
 
 def seed_users(con):
     """Nạp tài khoản mẫu khi bảng users còn trống."""
-    if con.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
-        return
     with con:
+        lock(con)   # kiểm "còn trống" và nạp trong cùng 1 transaction: 2 worker khởi động cùng lúc không nạp 2 lần
+        if con.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
+            return
         con.executemany("INSERT OR IGNORE INTO users (username,name,role,created_at) VALUES (?,?,?,?)",
                         [(*u, day()) for u in USERS])
 

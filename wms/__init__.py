@@ -47,7 +47,7 @@ def create_app():
     app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
                       SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE") == "1",   # đặt 1 khi chạy qua HTTPS
                       PERMANENT_SESSION_LIFETIME=timedelta(hours=8))
-    app.config["MAX_CONTENT_LENGTH"] = 3 * 1024 * 1024   # giới hạn ảnh tải lên: 3MB
+    app.config["MAX_CONTENT_LENGTH"] = 3 * 1024 * 1024   # giới hạn kích thước body mỗi request: 3MB
 
     for mod in FEATURES:
         app.register_blueprint(mod.bp)   # gắn từng nhóm chức năng vào app

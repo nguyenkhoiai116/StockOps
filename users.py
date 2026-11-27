@@ -10,7 +10,7 @@ import sys
 from getpass import getpass
 
 from wms import create_app
-from wms.db import db, rows
+from wms.db import db, lock, rows
 from wms.roles import ROLES
 from wms.users import MIN, set_password
 
@@ -39,6 +39,7 @@ def main(args):
         print("Hai lần nhập không giống nhau")
         return 1
     with con:
+        lock(con)
         for u in who:
             set_password(con, u, pw)
     print("Đã đặt mật khẩu cho", ", ".join(who))

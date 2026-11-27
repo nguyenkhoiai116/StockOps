@@ -34,6 +34,7 @@ def api_product_add():
     con = db()
     try:
         with con:
+            lock(con)
             con.execute("INSERT INTO products (sku,name,cat,unit,storage,price,safety,supplier) VALUES (?,?,?,?,?,?,?,?)",
                         (sku, name, text(d.get("cat")), "thùng", d["storage"], price, safety, text(d.get("supplier"))))
     except sqlite3.IntegrityError:

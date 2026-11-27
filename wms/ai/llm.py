@@ -24,7 +24,7 @@ def cfg():
     return {
         "url": os.getenv("LLM_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/"),
         "key": os.getenv("LLM_API_KEY", "").strip(),
-        "model": os.getenv("LLM_MODEL", "openrouter/free").strip(),
+        "model": os.getenv("LLM_MODEL", "google/gemma-4-31b-it:free").strip(),
         "site": os.getenv("APP_URL", "http://localhost:5000"),
         "name": os.getenv("APP_NAME", "StockOps"),
     }
