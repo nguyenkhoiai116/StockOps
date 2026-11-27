@@ -29,6 +29,8 @@
             word-break: break-word; font-size: .875rem; }
 .chat-msg.bot { align-self: flex-start; background: var(--raised); }
 .chat-msg.user { align-self: flex-end; background: var(--primary); color: #fff; }
+/* Dòng "Đã tra: ..." / "Nguồn: ..." ngay dưới câu trả lời của Kvis */
+.chat-meta { align-self: flex-start; max-width: 84%; margin-top: -4px; padding: 0 4px; font-size: .75rem; color: var(--muted); }
 
 .chat-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
 .chat-form input { flex: 1; min-width: 0; }

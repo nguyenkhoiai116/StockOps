@@ -8,12 +8,12 @@ const MAX_HIST = 6;   // số tin nhắn gần nhất gửi kèm để Kvis nh�
 const hist = [];
 
 // Gửi câu hỏi lên backend (/api/chat). API key nằm ở backend, frontend không bao giờ thấy.
-// Backend tự ghép số liệu kho hiện tại vào để Kvis trả lời theo dữ liệu thật.
+// Backend để Kvis tự tra số liệu bằng tool (theo quyền của người hỏi), trả về {reply, tools, sources, ...}.
 async function botReply(text) {
   const d = await api("/chat", "POST", { text, history: hist.slice(-MAX_HIST) });
   // Chỉ lưu vào lịch sử khi hỏi-đáp thành công
   hist.push({ role: "user", content: text }, { role: "assistant", content: d.reply });
-  return d.reply;
+  return d;
 }
 
 // Tạo nút chat, bong bóng lời chào và khung chat, gắn vào cuối <body>
@@ -52,6 +52,18 @@ export function mountChat() {
     return div;
   };
 
+  // Dòng nhỏ dưới câu trả lời: Kvis đã tra những gì, lấy từ tài liệu nào (để người dùng biết số liệu từ đâu ra)
+  const addMeta = (d) => {
+    const parts = [];
+    if (d.tools?.length) parts.push("Đã tra: " + d.tools.join(", "));
+    if (d.sources?.length) parts.push("Nguồn: " + d.sources.map((s) => (s.heading ? `${s.doc} › ${s.heading}` : s.doc)).join("; "));
+    if (!parts.length) return;
+    const div = document.createElement("div");
+    div.className = "chat-meta";
+    div.textContent = parts.join(" · ");
+    log.appendChild(div);
+  };
+
   // Mở / đóng khung chat; khi mở thì ẩn nút tròn và đặt con trỏ vào ô nhập
   const setOpen = (open, focus = true) => {
     box.hidden = !open;
@@ -84,7 +96,9 @@ export function mountChat() {
     const pending = addMsg("bot", "Kvis đang suy nghĩ…");
     input.disabled = true;   // khóa ô nhập trong lúc chờ (model có thể mất vài giây)
     try {
-      pending.textContent = await botReply(text);
+      const d = await botReply(text);
+      pending.textContent = d.reply;
+      addMeta(d);
     } catch (x) {
       pending.textContent = "Lỗi: " + x.message;   // lời giải thích lỗi do backend gửi về
     }

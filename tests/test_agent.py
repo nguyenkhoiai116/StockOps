@@ -56,7 +56,8 @@ class AgentTest(unittest.TestCase):
         self.env = mock.patch.dict(os.environ)
         self.env.start()
         os.environ.pop("LLM_TOOLS", None)
-        self.app = create_app()
+        os.environ["LLM_API_KEY"] = ""   # lỡ có chỗ không đi qua LLM giả thì báo lỗi ngay, không gọi mạng bằng key thật
+        self.app = create_app()          # (load_dotenv không ghi đè biến đã có)
         self.con = dbm.db()
         with self.con:
             dbm.lock(self.con)
@@ -186,6 +187,25 @@ class AgentTest(unittest.TestCase):
         f = Fake(reply("X"))
         self.ask(f)
         self.assertNotIn("KHÔNG được xem", f.seen[0][0][0]["content"])
+
+    def test_api_chat_tra_tools(self):
+        c = self.app.test_client()
+        c.post("/api/login", json={"user": "t_admin", "pass": PW})
+        f = Fake(calls("get_stock"), reply("SKU-001 còn 120 thùng"))
+        with mock.patch("wms.ai.llm.chat", f):
+            r = c.post("/api/chat", json={"text": "Tồn mì?", "history": [{"role": "user", "content": "chào"}]})
+        self.assertEqual(r.status_code, 200)
+        d = r.get_json()
+        self.assertEqual((d["reply"], d["tools"], d["mode"], d["actions"], d["sources"]),
+                         ("SKU-001 còn 120 thùng", ["Tồn theo SKU"], "agent", [], []))
+        self.assertEqual([m["content"] for m in f.seen[0][0][1:]], ["chào", "Tồn mì?"])
+
+    def test_api_chat_loi_llm_tra_502(self):
+        c = self.app.test_client()
+        c.post("/api/login", json={"user": "t_admin", "pass": PW})
+        with mock.patch("wms.ai.llm.chat", Fake(LLMError("Hết lượt"))):
+            r = c.post("/api/chat", json={"text": "Tồn mì?"})
+        self.assertEqual((r.status_code, r.get_json()["error"]), (502, "Hết lượt"))
 
     def test_lich_su_duoc_gui_kem(self):
         f = Fake(reply("X"))
