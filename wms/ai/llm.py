@@ -3,7 +3,7 @@
 Cấu hình nằm trong file .env (KHÔNG commit lên GitHub):
     LLM_BASE_URL = https://openrouter.ai/api/v1
     LLM_API_KEY  = sk-or-...
-    LLM_MODEL    = google/gemma-4-31b-it:free
+    LLM_MODEL    = nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
 
 Đổi nhà cung cấp (LM Studio chạy local, Gemini...) chỉ cần đổi 3 dòng trên,
 không phải sửa code, vì các bên đều nói chung "ngôn ngữ" /chat/completions.
@@ -28,7 +28,7 @@ def cfg():
     return {
         "url": os.getenv("LLM_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/"),
         "key": os.getenv("LLM_API_KEY", "").strip(),
-        "model": os.getenv("LLM_MODEL", "google/gemma-4-31b-it:free").strip(),
+        "model": os.getenv("LLM_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free").strip(),
         "site": os.getenv("APP_URL", "http://localhost:5000"),
         "name": os.getenv("APP_NAME", "StockOps"),
     }
