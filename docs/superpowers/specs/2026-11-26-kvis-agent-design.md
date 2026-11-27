@@ -43,7 +43,7 @@ Lấy từ `CLAUDE.md` và `docs/architecture.md`:
 - Embedding chạy local bằng sentence-transformers, lưu trong SQLite, tìm bằng numpy cosine.
 - Route `/api/*` mới phải khai trong `wms/roles.py` (`PERMS`). `guard()` mặc định chặn. Nút hành động dùng `can()`.
 - Mọi lệnh ghi chạy trong transaction có `lock(con)` (`BEGIN IMMEDIATE`) hoặc qua `core.run()`.
-- Đổi schema bằng file migration mới có số thứ tự. Số migration đã dùng tới 008 (`008_login_fails.sql`, cập nhật 2026-11-27), nên migration của AI là **`009_ai.sql`**.
+- Đổi schema bằng file migration mới có số thứ tự. Số 009 đã dùng cho danh mục FMCG (`009_fmcg.sql`, nhánh csv-data, cập nhật 2026-11-27), nên migration của AI là **`010_ai.sql`**.
 - Comment viết bằng tiếng Việt. Tên biến ngắn theo code cũ (`con`, `rows`, `day`, `bad`, `log`).
 - Python 3.11 trên Windows. Ngân sách: miễn phí.
 
@@ -81,7 +81,7 @@ Route chỉ còn đọc request rồi gọi các hàm này.
 
 ### Phần A1. Agent và tool đọc
 
-**Migration `009_ai.sql`**
+**Migration `010_ai.sql`**
 ```sql
 chat_logs(id, ts, user_id, question, reply, model, mode,   -- mode: 'agent' | 'snapshot'
           steps, tools,            -- tools: JSON [{name, args, ok}]
