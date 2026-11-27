@@ -19,6 +19,10 @@ class LLMError(Exception):
     """Lỗi khi gọi LLM, kèm câu giải thích tiếng Việt để hiện cho người dùng."""
 
 
+class NoTools(LLMError):
+    """Model đang cấu hình không hỗ trợ gọi tool -> agent lui về cách dán ảnh chụp số liệu."""
+
+
 def cfg():
     """Đọc cấu hình từ biến môi trường (do .env nạp vào lúc khởi động)."""
     return {
@@ -49,10 +53,15 @@ ERRS = {
 }
 
 
-def chat(msgs, temp=0.3, max_out=800):
-    """Gửi danh sách tin nhắn cho LLM và trả về (câu trả lời, tên model đã dùng).
+def chat(msgs, tools=None, temp=0.3, max_out=800):
+    """Gửi danh sách tin nhắn cho LLM. Trả về dict:
+        text  : câu trả lời (được phép rỗng khi model gọi tool)
+        calls : nguyên mảng tool_calls của API [{"id", "type", "function": {"name", "arguments"}}], không có = []
+        model : tên model đã dùng
+        usage : số token {"prompt_tokens", "completion_tokens"} (nếu nhà cung cấp trả về)
 
-    msgs: [{"role": "system"|"user"|"assistant", "content": "..."}]
+    msgs: [{"role": "system"|"user"|"assistant"|"tool", "content": "..."}]
+    tools: danh sách schema tool kiểu OpenAI; None = không cho model gọi tool.
     temp: độ "sáng tạo" (0 = chắc chắn, 1 = bay bổng). Trợ lý kho nên để thấp.
     max_out: số token tối đa của câu trả lời (chặn tốn chi phí).
     """
@@ -60,6 +69,9 @@ def chat(msgs, temp=0.3, max_out=800):
     if not c["key"]:
         raise LLMError("Chưa cấu hình LLM_API_KEY trong file .env.")
 
+    req = {"model": c["model"], "messages": msgs, "temperature": temp, "max_tokens": max_out}
+    if tools:
+        req["tools"] = tools
     try:
         r = requests.post(
             f"{c['url']}/chat/completions",
@@ -69,8 +81,7 @@ def chat(msgs, temp=0.3, max_out=800):
                 "HTTP-Referer": c["site"],               # tùy chọn: tên app hiện trên OpenRouter
                 "X-OpenRouter-Title": c["name"],         # tùy chọn
             },
-            json={"model": c["model"], "messages": msgs,
-                  "temperature": temp, "max_tokens": max_out},
+            json=req,
             timeout=TIMEOUT,
         )
     except requests.Timeout:
@@ -84,6 +95,9 @@ def chat(msgs, temp=0.3, max_out=800):
             raw = r.json().get("error", {}).get("message", "")
         except ValueError:
             raw = r.text[:200]
+        # OpenRouter báo model không gọi được tool bằng 404/400 kèm chữ "tool" (vd "No endpoints found that support tool use")
+        if tools and r.status_code in (400, 404) and "tool" in str(raw).lower():
+            raise NoTools(f"Model hiện tại không hỗ trợ gọi tool. ({raw})")
         msg = ERRS.get(r.status_code, f"Lỗi {r.status_code} từ máy chủ LLM.")
         raise LLMError(f"{msg} ({raw})" if raw else msg)
 
@@ -92,9 +106,10 @@ def chat(msgs, temp=0.3, max_out=800):
     if d.get("error"):
         raise LLMError("Model báo lỗi: " + str(d["error"].get("message", d["error"])))
     try:
-        text = d["choices"][0]["message"]["content"] or ""
-    except (KeyError, IndexError):
+        m = d["choices"][0]["message"]
+    except (KeyError, IndexError, TypeError):
         raise LLMError("Phản hồi của model không đúng định dạng.")
-    if not text.strip():
+    text, calls = (m.get("content") or "").strip(), m.get("tool_calls") or []
+    if not text and not calls:   # có tool call thì được phép không có chữ
         raise LLMError("Model trả về câu trả lời rỗng, thử hỏi lại.")
-    return text.strip(), d.get("model", c["model"])
+    return {"text": text, "calls": calls, "model": d.get("model", c["model"]), "usage": d.get("usage") or {}}

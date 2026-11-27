@@ -47,7 +47,7 @@ def api_chat():
     msgs = [{"role": "system", "content": SYSTEM + "\n\n" + ctx}, *hist,
             {"role": "user", "content": q}]
     try:
-        reply, model = chat(msgs)
+        r = chat(msgs)
     except LLMError as e:
         return bad(str(e), 502)   # 502 = lỗi từ dịch vụ bên ngoài
-    return jsonify(reply=reply, model=model)
+    return jsonify(reply=r["text"], model=r["model"])
