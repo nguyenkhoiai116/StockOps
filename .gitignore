@@ -10,3 +10,5 @@ static/uploads/*
 # Bí mật: API key, cấu hình riêng từng máy
 .env
 .secret_key
+# Kết quả chạy bộ chấm điểm Kvis (mỗi máy, mỗi model 1 file)
+tests/ai_eval/results-*.json
