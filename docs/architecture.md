@@ -11,12 +11,12 @@ Phần lớn tài liệu này là **kế hoạch**. Bảng dưới là những g
 | WMS | PO → nhận hàng thành lô → đơn bán → soạn FEFO → xuất → giao; cảnh báo, KPI, gợi ý đặt hàng | — |
 | Quyền | Đăng nhập, 5 role, 18 quyền trong `wms/roles.py`; `guard()` chặn mặc định | — |
 | Giao diện | 8 trang JS thuần trong `static/`, kho 3D chữ U | `web/` (Next.js, tùy chọn) |
-| Kvis | Trả lời từ ảnh chụp số liệu (`prompts.snapshot`) | Tool đọc, RAG, đề xuất hành động (nhánh A) |
+| Kvis | Tự gọi 8 tool đọc số liệu theo quyền người hỏi (`wms/ai/agent.py`, `tools.py`), lui về ảnh chụp số liệu khi model không gọi được tool | RAG, đề xuất hành động (nhánh A) |
 | Dữ liệu ngoài | — | Cổng ingest, `sims/`, `ml/` (nhánh B) |
 | Database | SQLite WAL, migration 001–008, `lock()` chống ghi đè | `010_ai.sql`, bảng time-series |
-| Test | 106 test, gồm luật lõi (`tests/test_core.py`) | Bộ chấm điểm agent, RAG |
+| Test | 141 test, gồm luật lõi (`tests/test_core.py`) và agent với LLM giả; bộ chấm 20 câu bằng LLM thật (`scripts/eval_agent.py`) | Bộ chấm RAG |
 
-Thứ tự đã chốt: **nhánh A** (Kvis agent, Phase 5–7, spec `docs/superpowers/specs/2026-11-26-kvis-agent-design.md`) làm trước, **nhánh B** (dữ liệu mô phỏng → ML, Phase 1–4) làm sau. Phần 0 của spec đã xong; bước tiếp theo là A1.
+Thứ tự đã chốt: **nhánh A** (Kvis agent, Phase 5–7, spec `docs/superpowers/specs/2026-11-26-kvis-agent-design.md`) làm trước, **nhánh B** (dữ liệu mô phỏng → ML, Phase 1–4) làm sau. Phần 0 và A1 của spec đã xong code; bước tiếp theo là A2 (RAG) và A3 (đề xuất).
 
 ## Summary
 
@@ -375,6 +375,12 @@ StockOps/
 - **Tradeoff:** các lệnh ghi phải xếp hàng (mỗi lệnh vài ms, `timeout=5` giây); quên gọi `lock()` ở khối ghi mới thì lỗi quay lại (đã ghi vào Agent Rules).
 - **Revisit when:** chuyển PostgreSQL (dùng `SELECT ... FOR UPDATE` hoặc mức cô lập của Postgres).
 
+### ADR-017: Tool của Kvis lọc theo quyền role của người hỏi
+- **Choice:** mỗi tool trong `wms/ai/tools.py` khai 1 quyền của `PERMS`. `specs(role)` chỉ đưa cho LLM các tool role đó có quyền; `call()` kiểm lại quyền lần nữa (LLM có thể bịa tên tool) và trả `{"error": "Không có quyền: ..."}`. Lời dặn hệ thống liệt kê các nhóm dữ liệu role đó không được xem, để Kvis trả lời "không có quyền" thay vì "không tra được". Sau này nút xác nhận đề xuất (A3) dùng quyền của người bấm.
+- **Why:** nếu không, Kvis thành đường vòng qua phân quyền: role `picking` không có `po.view` vẫn hỏi chat ra danh sách PO. Kiểm ở backend theo đúng `PERMS` nên khớp với những gì trang web cho xem.
+- **Tradeoff:** Kvis không trả lời được câu cần dữ liệu ngoài quyền dù chỉ để tính tổng; mỗi tool mới phải chọn đúng quyền (test `test_specs_theo_role` kiểm).
+- **Revisit when:** cần quyền theo từng dòng dữ liệu (vd mỗi người chỉ xem kho của mình) thay vì theo loại dữ liệu.
+
 ## Lộ trình triển khai (các bước)
 
 Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
@@ -388,7 +394,7 @@ Thứ tự đã đổi (chủ dự án chốt 2026-11-26): Phase 0 xong → **nh
 | **2. temp_sim** (2 buổi) · nhánh B | `sims/common/clock.py`, `client.py`; app 5101 với thanh trượt + nút sự cố; trang "Giám sát nhiệt độ" trong StockOps vẽ biểu đồ 1 giờ gần nhất (polling) | Bấm "hỏng máy nén" → trong ≤ 10s StockOps hiện cảnh báo |
 | **3. store_sim** (2–3 buổi) · nhánh B | App 5102: cửa hàng, lượt khách, bán lẻ, tự đặt SO; `scripts/backfill.py --days 180` | Có ≥ 180 ngày `store_sales`; chạy live x60 trong 10 phút sinh ra SO mới trong trang Soạn hàng |
 | **4. ML** (3–4 buổi) · nhánh B | `ml/features.py`; baseline; train demand + traffic; `evaluate.py` in MAE/WAPE so với baseline; `features/ml.py`; biểu đồ dự báo vs thực tế; gợi ý đặt hàng dùng dự báo (ROP = nhu cầu dự báo trong lead time + safety stock) thay cho `safety*2 - av` | Model thắng baseline trên 28 ngày cuối; API trả dự báo 7 ngày |
-| **5. Agent + tool** (2–3 buổi) · nhánh A, làm trước | `010_ai.sql` (`chat_logs`, `agent_actions`, `doc_chunks`); `ai/llm.py`, `tools.py` (chỉ đọc), `agent.py`; `/api/chat`; nối `chat.js`; bộ 20 câu hỏi mẫu kèm đáp án | ≥ 16/20 câu trả lời đúng số liệu, mỗi câu ≤ 5 bước tool |
+| **5. Agent + tool** (2–3 buổi) · nhánh A, làm trước · ⏳ xong code 2026-11-27, đã chấm 5/20 câu (5 đạt) | `010_ai.sql` (`chat_logs`, `agent_actions`, `doc_chunks`); `ai/llm.py`, `tools.py` (chỉ đọc), `agent.py`; `/api/chat`; nối `chat.js`; bộ 20 câu hỏi mẫu kèm đáp án | ≥ 16/20 câu trả lời đúng số liệu, mỗi câu ≤ 5 bước tool |
 | **6. RAG** (2 buổi) · nhánh A | Viết 8–15 tài liệu trong `knowledge/`; `build_index.py`; tool `search_docs`; hiển thị nguồn trích dẫn | Bộ 15 câu hỏi tài liệu: đúng tài liệu nằm trong top-5 ≥ 80% |
 | **7. Đề xuất hành động** (1–2 buổi) · nhánh A | `propose_po`, `propose_adjust`; thẻ xác nhận trong chat; trang lịch sử đề xuất | Hỏi "nên nhập gì?" → thẻ PO đúng SKU/số lượng; bấm xác nhận → PO xuất hiện ở trang Nhập hàng |
 
@@ -446,6 +452,7 @@ Thứ tự đã đổi (chủ dự án chốt 2026-11-26): Phase 0 xong → **nh
 | 2026-11-26 | Review kiến trúc và luồng dữ liệu (planfirst brownfield) | Cập nhật Alignment Score (~85%); thêm `docs/review-2026-11-26.md`: race transaction, nghiệp vụ ngoài core.py, lỗi 500, mã hóa test |
 | 2026-11-26 | Sửa race khi ghi đồng thời | ADR-015; `db.lock()`, migration 004 (UNIQUE số đơn), `run()` bắt IntegrityError, chống bấm đúp ở `core.js`, `tests/test_race.py`; Alignment ~90% |
 | 2026-11-26 | Chốt thứ tự nhánh A trước, làm Phần 0 của spec Kvis | Mục Hiện trạng; `tests/test_core.py` (luật lõi, viết trước khi chuyển); `core.zone_status`, `reorder`/`reorder_qty` (trừ PO đang chờ nhận), `create_po`, `do_adjust`; route PO và điều chỉnh báo 400 khi body sai; sửa chỗ lệch (migration 004/005, auth, thứ tự phase); xóa `HUONG_DAN.txt`; tên StockOps ở mọi nơi |
+| 2026-11-27 | Kvis A1: agent tự gọi tool đọc dữ liệu | ADR-017; `wms/ai/tools.py` (8 tool chỉ đọc, lọc theo quyền role), `agent.py` (tối đa 5 bước, ghi `chat_logs`, không giữ khóa DB khi chờ LLM, lui về snapshot khi model không gọi được tool), `llm.chat` trả `tool_calls` + `NoTools`; migration `010_ai.sql`; dòng "Đã tra" trong chat; `scripts/eval_agent.py` + 20 câu. Chấm thật 5 câu: nemotron-3-nano-omni-30b-a3b-reasoning:free 5/5 (chọn làm mặc định), gemma-4-31b-it:free bị 429 chưa đo; còn 15 câu chạy tiếp bằng `--resume`. Dọn nợ: mọi khối ghi gọi `lock(con)` (`tests/test_rules.py`), model mặc định cố định thay `openrouter/free` |
 
 ---
 To update, run `/planfirst` again.
