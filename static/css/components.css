@@ -205,9 +205,66 @@ tr.pick[aria-selected="true"] { background: var(--primary-bg); }
 /* ----- Hộp thoại (modal) ----- */
 .modal { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(23, 23, 23, .4); align-items: center; justify-content: center; padding: 16px; }
 .modal.show { display: flex; }
-.box { background: var(--card); border-radius: 16px; padding: 24px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; scrollbar-width: thin; box-shadow: var(--shadow); }
-.box label { display: block; font-size: .875rem; color: var(--text-2); margin-bottom: 16px; }
-.box label input, .box label select { display: block; width: 100%; margin-top: 4px; }
+.box { background: var(--card); border-radius: 16px; padding: 24px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; scrollbar-width: thin; box-shadow: var(--shadow); }
+.box.wide { max-width: 860px; }
+.box label { display: block; font-size: .875rem; color: var(--text-2); margin-bottom: 14px; }
+.box label input, .box label select, .box label textarea { display: block; width: 100%; margin-top: 4px; }
+textarea { padding: 10px 12px; border: 1px solid var(--line-2); border-radius: var(--r-sm); font: inherit; color: var(--text); background: var(--card); resize: vertical; }
+textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+
+/* ----- Tab nghiệp vụ, Callout, Stepper, Gantt Dock, Thùng xe 2D LIFO & Team Chat ----- */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.tabs button { min-height: 36px; padding: 6px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--card);
+               color: var(--text-2); font: inherit; font-size: .875rem; font-weight: 500; cursor: pointer; transition: all .15s var(--ease); }
+.tabs button:hover { color: var(--text); border-color: var(--line-2); }
+.tabs button.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.callout { padding: 12px 14px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg); font-size: .875rem; margin-bottom: 12px; }
+.callout.warn { background: var(--warn-bg); border-color: #e6c68a; color: var(--warn); }
+.callout.bad { background: var(--bad-bg); border-color: #ebb0ae; color: var(--bad); }
+.callout.ok { background: var(--ok-bg); border-color: #a6d6be; color: var(--ok); }
+.callout.info { background: var(--info-bg); border-color: #b7cdf5; color: var(--info); }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+.pane { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 14px; background: var(--bg); }
+.pane h3 { margin: 0 0 10px; font-size: .9375rem; }
+.step-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.step-pill { padding: 2px 8px; border-radius: var(--r-xs); font-size: .75rem; background: var(--raised); color: var(--muted); }
+.step-pill.done { background: var(--ok-bg); color: var(--ok); font-weight: 500; }
+.step-pill.cur { background: var(--primary-bg); color: var(--primary); font-weight: 600; border: 1px solid var(--primary); }
+
+/* Sơ đồ thùng xe 2D LIFO */
+.truck-wrap { border: 2px solid var(--line-2); border-radius: var(--r); padding: 14px; background: var(--bg); margin-top: 12px; }
+.truck-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: .8125rem; color: var(--text-2); }
+.truck-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.truck-bay { display: grid; grid-template-rows: auto 1fr 1fr; gap: 6px; border: 1px dashed var(--line-2); border-radius: var(--r-sm); padding: 8px; background: var(--card); }
+.truck-bay .bh { font-size: .75rem; font-weight: 600; color: var(--text-2); display: flex; justify-content: space-between; }
+.truck-slot { padding: 8px; border-radius: var(--r-xs); font-size: .8125rem; border: 1px solid var(--line); min-height: 62px; }
+.truck-slot.top { background: #fff8e6; border-color: #e7c97f; }
+.truck-slot.bot { background: #eaf0fc; border-color: #a9c3f2; }
+.truck-slot.cold { background: #e3f4fa; border-color: #84cbe3; }
+.truck-slot.empty { background: var(--bg); color: var(--muted); border-style: dashed; display: grid; place-items: center; font-size: .75rem; }
+
+/* Lịch Gantt cửa Dock */
+.gantt { display: flex; flex-direction: column; gap: 8px; }
+.gantt-row { display: grid; grid-template-columns: 90px 1fr; gap: 10px; align-items: center; }
+.gantt-track { position: relative; height: 42px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-xs); overflow: hidden; }
+.gantt-blk { position: absolute; top: 4px; bottom: 4px; border-radius: var(--r-xs); padding: 2px 8px; font-size: .75rem; line-height: 1.25;
+             background: var(--primary-bg); border: 1px solid var(--primary); color: var(--primary-d); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.gantt-blk.cold { background: #ddf3fb; border-color: #0284c7; color: #075985; }
+.gantt-blk.sla { border: 2px solid var(--bad); }
+
+/* Chat nội bộ */
+.chat-feed { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px;
+             background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm); margin-bottom: 12px; }
+.msg-item { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 14px; }
+.msg-item.mine { border-color: var(--primary); background: #f5f8ff; }
+.msg-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .8125rem; color: var(--muted); margin-bottom: 4px; }
+.msg-body { font-size: .9rem; white-space: pre-wrap; }
+.btn.ok { background: var(--ok); }
+.btn.ok:hover { background: #0f5739; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.qr-box { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border: 1px solid var(--line-2); border-radius: var(--r-xs); background: #fff; }
+.temp-svg { width: 100%; height: 220px; display: block; }
+@media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
 .box .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .box p { margin: 8px 0; }
 .box h2 { font-size: 1.125rem; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }

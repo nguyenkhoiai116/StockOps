@@ -8,12 +8,13 @@ import { page as inventory } from "./features/inventory.js";
 import { page as picking } from "./features/picking.js";
 import { page as shipping } from "./features/shipping.js";
 import { page as analytics } from "./features/analytics.js";
+import { page as collab } from "./features/collab.js";
 import { loginPage, userBox } from "./features/auth.js";
 import { mountChat } from "./chat.js";
 
 // Danh sách chức năng. Thêm feature mới: import ở trên rồi thêm vào đây.
 // perm: các quyền mở được trang (có 1 trong số đó là đủ), khai báo ở cuối mỗi file feature.
-const ALL = [dashboard, products, inbound, layout, inventory, picking, shipping, analytics];
+const ALL = [dashboard, products, inbound, layout, inventory, picking, shipping, analytics, collab];
 let PAGES = [];   // các trang người đang đăng nhập được mở
 
 // ---------- Trang chính: lưới ô chọn chức năng ----------

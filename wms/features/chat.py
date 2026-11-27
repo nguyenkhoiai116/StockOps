@@ -3,7 +3,7 @@
 Luồng: giao diện gửi câu hỏi -> backend ghép [lời dặn + số liệu kho + lịch sử + câu hỏi]
 -> gọi LLM -> trả câu trả lời. API key chỉ nằm ở backend, trình duyệt không bao giờ thấy.
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
 from ..ai.llm import LLMError, cfg, chat, ready
 from ..ai.prompts import SYSTEM, snapshot
@@ -39,7 +39,7 @@ def api_chat():
 
     con = db()
     try:
-        ctx = snapshot(con)   # số liệu kho ngay lúc hỏi
+        ctx = snapshot(con, g.user)   # số liệu kho lọc theo đúng vai trò đang đăng nhập
     finally:
         con.close()
 

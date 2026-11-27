@@ -27,12 +27,13 @@ export const setMe = (u) => { me = u; };
 export const can = (...ps) => !!me && ps.some((p) => me.perms.includes(p));
 
 // ---------- Gọi API của Python ----------
-// Gửi request tới /api + path, tự đóng gói body thành JSON; lỗi thì ném Error kèm thông báo của server
+// Gửi request tới /api + path; hỗ trợ cả JSON và FormData (upload file Excel/CSV)
 export async function api(path, method = "GET", body) {
+  const isForm = body instanceof FormData;
   const r = await fetch("/api" + path, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : {},
-    body: body ? JSON.stringify(body) : undefined,
+    headers: body && !isForm ? { "Content-Type": "application/json" } : {},
+    body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
   });
   // Hết phiên giữa chừng: tải lại trang để về màn hình đăng nhập
   if (r.status === 401 && me) { location.reload(); return new Promise(() => {}); }
