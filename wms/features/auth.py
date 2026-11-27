@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 from flask import Blueprint, g, jsonify, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from ..db import bad, body, db
+from ..db import bad, body, db, lock
 from ..roles import ANY, PERMS, PUBLIC, ROLES, perm_of
 from ..users import MIN, set_password
 
@@ -89,6 +89,7 @@ def api_login():
     con = db()
     try:
         with con:   # dọn các lần sai đã quá thời gian khóa
+            lock(con)
             con.execute("DELETE FROM login_fails WHERE ts<=?", (now - WAIT,))
         if recent(con, ip, now, name) >= MAX_USER or recent(con, ip, now) >= MAX_IP:
             return bad("Sai quá nhiều lần, thử lại sau 5 phút", 429)
@@ -97,9 +98,11 @@ def api_login():
         ok = check_password_hash(u["pw_hash"] if u and u["pw_hash"] else DUMMY, pw)
         if not (ok and u and u["pw_hash"]):
             with con:
+                lock(con)
                 con.execute("INSERT INTO login_fails (ip, username, ts) VALUES (?,?,?)", (ip, name, now))
             return bad("Sai tài khoản hoặc mật khẩu", 401)
         with con:   # đăng nhập đúng: xóa các lần sai của tài khoản này từ máy này
+            lock(con)
             con.execute("DELETE FROM login_fails WHERE ip=? AND username=?", (ip, name))
     finally:
         con.close()
@@ -131,6 +134,7 @@ def api_password():
         return bad(f"Mật khẩu mới cần từ {MIN} ký tự")
     con = db()
     with con:
+        lock(con)
         set_password(con, g.user["username"], new)
     u = con.execute("SELECT * FROM users WHERE id=?", (g.user["id"],)).fetchone()
     con.close()

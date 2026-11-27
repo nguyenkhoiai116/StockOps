@@ -1,12 +1,42 @@
 """Lời dặn hệ thống (system prompt) cho Kvis và ảnh chụp nhanh số liệu kho.
 
-GIAI ĐOẠN TẠM: chưa có tool calling (Phase 5), nên mỗi câu hỏi ta "chụp" số liệu
-hiện tại (KPI, cảnh báo, tồn theo SKU) rồi đưa vào prompt. Cách này đơn giản và
-số liệu luôn mới, nhưng chỉ phù hợp khi dữ liệu nhỏ. Khi có tools, phần snapshot
-sẽ được thay bằng các hàm agent tự gọi khi cần.
+- AGENT + agent_system(): lời dặn cho cách chính, Kvis tự gọi tool (wms/ai/tools.py) để tra số liệu.
+- SYSTEM + snapshot(): đường lui khi model không gọi được tool (hoặc LLM_TOOLS=0): "chụp" số liệu
+  hiện tại (KPI, cảnh báo, tồn theo SKU) rồi dán vào prompt. Đơn giản, nhưng chỉ hợp khi dữ liệu nhỏ.
 """
 from ..core import get_alerts, get_kpis, stock_by_sku
-from ..roles import can
+from ..db import day
+from ..roles import PERMS, ROLES, can
+from .tools import TOOLS
+
+AGENT = """Bạn là Kvis, trợ lý AI của hệ thống quản lý kho FMCG StockOps.
+
+Quy tắc:
+- Trả lời bằng tiếng Việt, ngắn gọn, đi thẳng vào ý chính.
+- Khung chat hiển thị chữ thường: KHÔNG dùng markdown (**, #, bảng). Liệt kê bằng "-" và xuống dòng.
+- Cần số liệu thì GỌI TOOL. Mọi con số trong câu trả lời phải lấy từ kết quả tool trong lượt này, không bịa, không đoán.
+  Không có tool nào cho dữ liệu đó thì nói thẳng là bạn không tra được.
+- Tool trả về lỗi "Không có quyền" thì nói rõ người dùng không có quyền xem dữ liệu đó. Không đoán số.
+- Kết quả có "truncated": true là danh sách đã bị cắt bớt; muốn đủ thì gọi lại với tham số lọc (sku, zone, status...).
+- Bạn KHÔNG thể tự thay đổi dữ liệu (nhập, xuất, điều chỉnh tồn, tạo PO). Nếu người dùng muốn,
+  hãy hướng dẫn họ làm trên trang tương ứng: Nhập hàng, Tồn kho, Soạn hàng, Xuất kho.
+- Đơn vị số lượng là "thùng"; tiền là đồng (VND).
+- Hàng mát bảo quản 2-8°C, hàng đông -18°C trở xuống; xuất kho theo FEFO
+  (lô hết hạn trước xuất trước)."""
+
+
+def agent_system(user):
+    """Lời dặn cho 1 người hỏi: thêm ngày hôm nay, tên, role và các nhóm dữ liệu role này KHÔNG được xem.
+    Tool bị cấm đã bị giấu hẳn khỏi danh sách (tools.specs), nên phải nói ra ở đây thì Kvis mới biết
+    "không tra được" là do quyền, để trả lời đúng thay vì nói chung chung."""
+    role = user["role"]
+    deny = [PERMS[p][0] for p in dict.fromkeys(t["perm"] for t in TOOLS.values()) if not can(role, p)]
+    out = [AGENT, "", f"Hôm nay: {day()}. Người hỏi: {user['name']} (vai trò: {ROLES.get(role, role)})."]
+    if deny:
+        out.append("Role này KHÔNG được xem: " + "; ".join(deny) + ". Hỏi tới các dữ liệu đó thì trả lời là không có quyền xem.")
+        out.append("Riêng Chỉ số KPI và Cảnh báo (kể cả số lô trong cảnh báo hạn dùng, số PO chờ nhận, số đơn chưa giao) "
+                   "thì mọi role đều xem được ở trang Tổng quan: tool trả về gì thì cứ trả lời bình thường.")
+    return "\n".join(out)
 
 SYSTEM = """Bạn là Kvis, trợ lý AI của hệ thống quản lý kho FMCG StockOps.
 

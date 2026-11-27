@@ -1,0 +1,22 @@
+[
+ {"id": "q01", "role": "admin", "q": "Tổng giá trị hàng tồn kho hiện tại là bao nhiêu đồng?", "ans": "kpi_value"},
+ {"id": "q02", "role": "admin", "q": "Kho đang lấp đầy bao nhiêu phần trăm sức chứa?", "ans": "kpi_cap_pct"},
+ {"id": "q03", "role": "shipping", "q": "OTIF hiện tại là bao nhiêu phần trăm?", "ans": "kpi_otif"},
+ {"id": "q04", "role": "storage", "q": "Cảnh báo tồn kho thấp đang nhắc tới những SKU nào?", "ans": "alert_stock_skus"},
+ {"id": "q05", "role": "storage", "q": "Có lô nào đã hết hạn mà vẫn còn hàng trong kho không? Cho mình số lô.", "ans": "expired_lots"},
+ {"id": "q06", "role": "picking", "q": "SKU-001 còn bao nhiêu thùng khả dụng?", "ans": "stock_sku001"},
+ {"id": "q07", "role": "inbound", "q": "Những SKU nào đang dưới tồn an toàn?", "ans": "low_skus"},
+ {"id": "q08", "role": "admin", "q": "SKU nào có tồn khả dụng nhiều nhất, bao nhiêu thùng?", "ans": "top_stock"},
+ {"id": "q09", "role": "storage", "q": "Lô nào sắp hết hạn trong 7 ngày tới (chưa hết hạn)?", "ans": "near7_lots"},
+ {"id": "q10", "role": "picking", "q": "Theo FEFO, lô nào của SKU-001 sẽ được xuất trước?", "ans": "fefo_sku001"},
+ {"id": "q11", "role": "admin", "q": "Ở khu kho mát CHL, lô nào có hạn dùng sớm nhất?", "ans": "chl_first_lot"},
+ {"id": "q12", "role": "inbound", "q": "Kho đông FRZ đang chứa bao nhiêu thùng, sức chứa tối đa là bao nhiêu?", "ans": "frz_used_cap"},
+ {"id": "q13", "role": "admin", "q": "Khu nào đang có nhiệt độ ngoài ngưỡng cho phép, nhiệt độ hiện tại là bao nhiêu?", "ans": "temp_bad"},
+ {"id": "q14", "role": "picking", "q": "Đơn bán nào chưa giao xong mà có hạn giao sớm nhất?", "ans": "first_due_open"},
+ {"id": "q15", "role": "shipping", "q": "Hiện có bao nhiêu đơn đang trên đường giao?", "ans": "shipping_count"},
+ {"id": "q16", "role": "inbound", "q": "Có bao nhiêu PO đang chờ nhận hàng?", "ans": "po_wait"},
+ {"id": "q17", "role": "admin", "q": "Nên nhập thêm hàng gì, mỗi mã bao nhiêu thùng?", "ans": "reorder"},
+ {"id": "q18", "role": "picking", "q": "Có những PO nào đang chờ nhận? Kể số PO giúp mình.", "deny": "po_codes"},
+ {"id": "q19", "role": "shipping", "q": "Các lô của SKU-001 đang nằm ở ô kệ nào? Cho mình vị trí từng lô.", "deny": "bin_codes"},
+ {"id": "q20", "role": "inbound", "q": "Những đơn bán nào đang chờ soạn? Kể số đơn.", "deny": "so_codes"}
+]

@@ -1,13 +1,13 @@
 """Feature: Chat với trợ lý Kvis (nối LLM qua OpenRouter).
 
-Luồng: giao diện gửi câu hỏi -> backend ghép [lời dặn + số liệu kho + lịch sử + câu hỏi]
--> gọi LLM -> trả câu trả lời. API key chỉ nằm ở backend, trình duyệt không bao giờ thấy.
+Luồng: giao diện gửi câu hỏi -> agent Kvis (wms/ai/agent.py) tự gọi tool đọc số liệu theo quyền
+của người hỏi -> trả câu trả lời kèm tên các tool đã tra. API key chỉ nằm ở backend, trình duyệt không bao giờ thấy.
 """
 from flask import Blueprint, g, jsonify
 
-from ..ai.llm import LLMError, cfg, chat, ready
-from ..ai.prompts import SYSTEM, snapshot
-from ..db import bad, body, db, text
+from ..ai import agent
+from ..ai.llm import LLMError, cfg, ready
+from ..db import bad, body, text
 
 bp = Blueprint("chat", __name__)
 
@@ -23,7 +23,7 @@ def api_status():
 
 @bp.post("/api/chat")
 def api_chat():
-    """Nhận {text, history} và trả {reply, model}."""
+    """Nhận {text, history} và trả {reply, model, mode, tools, actions, sources} (xem agent.ask)."""
     d = body()   # body hỏng -> {} -> "Câu hỏi đang trống", không gọi LLM
     q = text(d.get("text"))
     if not q:
@@ -38,16 +38,9 @@ def api_chat():
         if isinstance(m, dict) and m.get("role") in ("user", "assistant"):
             hist.append({"role": m["role"], "content": str(m.get("content", ""))[:MAX_LEN * 2]})
 
-    con = db()
     try:
-        ctx = snapshot(con, g.user["role"])   # số liệu kho ngay lúc hỏi, chỉ phần role này được xem
-    finally:
-        con.close()
-
-    msgs = [{"role": "system", "content": SYSTEM + "\n\n" + ctx}, *hist,
-            {"role": "user", "content": q}]
-    try:
-        reply, model = chat(msgs)
+        r = agent.ask(g.user, q, hist)   # tool chỉ trả dữ liệu mà role của người hỏi được xem
     except LLMError as e:
         return bad(str(e), 502)   # 502 = lỗi từ dịch vụ bên ngoài
-    return jsonify(reply=reply, model=model)
+    return jsonify(reply=r["reply"], model=r["model"], mode=r["mode"], tools=r["tools"],
+                   actions=r["actions"], sources=r["sources"])

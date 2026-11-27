@@ -102,6 +102,9 @@ Không có API key thì mọi chức năng khác vẫn chạy bình thường, c
 
 Muốn chạy model trên máy bằng **LM Studio**: xem phần mẫu trong `.env.example`.
 
+**Kvis tra số liệu thế nào:** Kvis tự gọi các "tool" chỉ đọc (KPI, cảnh báo, tồn theo SKU, tồn theo lô, khu kho, đơn bán, PO, gợi ý đặt hàng), tối đa 5 bước cho 1 câu hỏi. Mỗi tool chỉ trả dữ liệu mà vai trò của người hỏi được xem, giống hệt các trang web. Dưới câu trả lời có dòng nhỏ **"Đã tra: Tồn theo SKU, Cảnh báo"** cho biết số liệu lấy từ đâu. Kvis không tự sửa dữ liệu được.
+Nếu model không hỗ trợ gọi tool, Kvis tự lui về cách cũ (dán bản tóm tắt số liệu vào câu hỏi) và ghi chú ở cuối câu trả lời. Mỗi câu hỏi được ghi vào bảng `chat_logs` (số bước, token, thời gian) để theo dõi.
+
 > File `.env` chứa bí mật, đã nằm trong `.gitignore`. **Không bao giờ** đưa nó lên GitHub.
 
 ---
@@ -114,7 +117,8 @@ Muốn chạy model trên máy bằng **LM Studio**: xem phần mẫu trong `.en
 | `FLASK_DEBUG` | `0` | `1` = tự nạp lại khi sửa code + trang lỗi chi tiết. Để `0` khi cho người khác vào qua Wi-Fi |
 | `LLM_BASE_URL` | OpenRouter | Địa chỉ dịch vụ LLM (chuẩn OpenAI) |
 | `LLM_API_KEY` | trống | Key của dịch vụ LLM |
-| `LLM_MODEL` | `openrouter/free` | Tên model |
+| `LLM_MODEL` | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` | Tên model, phải hỗ trợ gọi tool |
+| `LLM_TOOLS` | `1` | `0` = tắt tool, Kvis trả lời từ bản tóm tắt số liệu |
 
 ---
 
@@ -165,7 +169,7 @@ StockOps/
 │   ├── roles.py        Vai trò và quyền (PERMS)
 │   ├── users.py        Mật khẩu (băm, không lưu chữ thật)
 │   ├── seed.py         Dữ liệu mẫu
-│   ├── ai/             Kết nối LLM (llm.py) và lời nhắc cho Kvis (prompts.py)
+│   ├── ai/             Kvis: gọi LLM (llm.py), tool đọc dữ liệu (tools.py), vòng lặp agent (agent.py), lời dặn (prompts.py)
 │   └── features/       MỖI CHỨC NĂNG 1 FILE: dashboard, products, inbound, layout,
 │                       inventory, picking, shipping, analytics, auth, chat
 ├── static/             FRONTEND
@@ -214,7 +218,17 @@ StockOps/
 python -m unittest discover tests
 ```
 
-Kết quả đúng: dòng cuối là `OK`. `PYTHONUTF8=1` để console Windows in được tiếng Việt.
+Kết quả đúng: dòng cuối là `OK`. `PYTHONUTF8=1` để console Windows in được tiếng Việt. Các test này không gọi LLM thật.
+
+### Chấm điểm Kvis bằng LLM thật
+
+```bash
+python scripts/eval_agent.py --only q01,q06        # vài câu trong tests/ai_eval/questions.json
+python scripts/eval_agent.py --resume              # chạy tiếp các câu chưa chấm (hôm sau, khi còn lượt)
+python scripts/eval_agent.py --model google/gemma-4-31b-it:free   # thử model khác, không sửa .env
+```
+
+Mỗi câu tốn 2–3 lượt gọi model; model miễn phí của OpenRouter bị giới hạn lượt mỗi ngày, nên chạy rải bằng `--resume`. Đáp án tính từ database lúc chạy. Kết quả từng câu nằm trong `tests/ai_eval/results-<model>.json` (không đưa lên git). Mục tiêu: ≥ 16/20 câu đạt.
 
 ### Quy ước của dự án
 
