@@ -97,10 +97,13 @@ async function render() {
     <div class="cols3">
       <div class="card"><h2>Cảnh báo</h2><ul class="list">${d.alerts.map((a) =>
         `<li class="al"><span class="tag ${a.level === "high" ? "bad" : "warn"}">${a.level === "high" ? "Cao" : "Vừa"}</span><span>${esc(a.msg)}</span></li>`).join("") || `<li>Không có cảnh báo</li>`}</ul></div>
-      <div class="card"><h2>Gợi ý xử lý</h2><ul class="list">${d.tips.map((t) => `<li><b>${esc(t.title)}</b><small>${esc(t.detail)}</small></li>`).join("") || `<li>Không có gợi ý</li>`}</ul>
-        <p class="note">Gợi ý theo luật, cần bạn xác nhận trước khi làm</p></div>
-      <div class="card"><h2>Hoạt động gần đây</h2><ul class="list">${d.acts.map((a) =>
-        `<li>${KIND[a.kind]} ${a.qty > 0 ? "+" : ""}${num(a.qty)} · ${esc(a.sku)}<small>${esc(a.note)} · ${dmyt(a.ts)}</small></li>`).join("")}</ul></div>
+      <div class="card"><h2>Gợi ý công việc theo vai trò</h2><ul class="list">${d.tips.map((t) => `<li><b>${esc(t.title)}</b><small>${esc(t.detail)}</small></li>`).join("") || `<li>Không có gợi ý</li>`}</ul>
+        <p class="note">Cá nhân hóa theo vai trò đang đăng nhập — con người xác nhận trước khi thực hiện</p></div>
+      <div class="card"><div class="head card-head"><h2>Nhật ký liên phòng ban</h2><a class="lnk" href="#/collab">Xem tất cả →</a></div>
+        <ul class="list">${(d.audits || []).map((a) =>
+          `<li><b>${esc(a.action)}</b> ${a.ref_no ? `<span class="loc">${esc(a.ref_no)}</span>` : ""}
+            <small>${esc(a.user_name)} (${esc(a.role)}) · ${esc(a.detail)} · ${dmyt(a.ts)}</small></li>`).join("") || d.acts.map((a) =>
+          `<li>${KIND[a.kind]} ${a.qty > 0 ? "+" : ""}${num(a.qty)} · ${esc(a.sku)}<small>${esc(a.note)} · ${dmyt(a.ts)}</small></li>`).join("")}</ul></div>
     </div>`;
 }
 

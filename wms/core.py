@@ -3,9 +3,53 @@
 Đây là "bộ não" của kho. Các feature chỉ gọi lại các hàm ở đây,
 nhờ vậy quy tắc (vd không cho tồn âm) nằm 1 chỗ duy nhất.
 """
-from datetime import date
+from datetime import date, datetime
+
+from flask import g, has_request_context
 
 from .db import NEAR, bad, day, db, log, rows
+
+
+# ---------- Thời gian, người thao tác, nhật ký & phối hợp ----------
+def now_iso():
+    """Thời điểm hiện tại dạng ISO 'YYYY-MM-DDTHH:MM:SS'."""
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def actor():
+    """Trả về (username, name, role) của người đang đăng nhập hoặc hệ thống."""
+    if has_request_context() and getattr(g, "user", None):
+        u = g.user
+        return u["username"], u["name"], u["role"]
+    return "system", "Hệ thống", "admin"
+
+
+def audit(con, module, action, ref_no="", detail=""):
+    """Ghi 1 dòng lịch sử thao tác liên phòng ban (Audit Trail)."""
+    un, nm, rl = actor()
+    con.execute(
+        """INSERT INTO audit_logs (ts, username, user_name, role, module, action, ref_no, detail)
+           VALUES (?,?,?,?,?,?,?,?)""",
+        (now_iso(), un, nm, rl, module, action, ref_no or "", detail or ""),
+    )
+
+
+def notify_team(con, channel, body, ref_no=""):
+    """Gửi tin nhắn phối hợp vào phòng chat nội bộ theo kênh bộ phận."""
+    un, nm, rl = actor()
+    con.execute(
+        """INSERT INTO team_messages (ts, sender_user, sender_name, sender_role, channel, ref_no, body)
+           VALUES (?,?,?,?,?,?,?)""",
+        (now_iso(), un, nm, rl, channel, ref_no or "", body),
+    )
+
+
+def shelf_pct(exp_str, shelf_days):
+    """Phần trăm hạn sử dụng còn lại so với vòng đời chuẩn của SKU."""
+    left = (date.fromisoformat(exp_str) - date.today()).days
+    if not shelf_days or shelf_days <= 0:
+        return 100.0 if left >= 0 else 0.0
+    return round(min(100.0, left / shelf_days * 100), 1)
 
 
 # ---------- Vị trí / sức chứa ----------
@@ -38,19 +82,23 @@ def do_pick(con, so_id):
     if not so or so["status"] != "new":
         raise ValueError("Đơn không tồn tại hoặc đã được soạn")
     bs = rows(con, """SELECT id, batch_no, qty - reserved AS av FROM batches
-                      WHERE product_id=? AND exp>=? AND qty-reserved>0 ORDER BY exp, id""",
+                      WHERE product_id=? AND exp>=? AND qty-reserved>0 AND q_status='ok' AND locked=0
+                      ORDER BY exp, id""",
               (so["product_id"], day()))
     need, have = so["qty"], sum(b["av"] for b in bs)
     if have < need:
-        raise ValueError(f"Không đủ hàng khả dụng: cần {need}, chỉ có {have} (đã loại lô hết hạn)")
+        raise ValueError(f"Không đủ hàng khả dụng: cần {need}, chỉ có {have} (đã loại lô hết hạn/cách ly)")
+    picked = []
     for b in bs:
         if need == 0:
             break
         take = min(need, b["av"])
         con.execute("UPDATE batches SET reserved=reserved+? WHERE id=?", (take, b["id"]))
         con.execute("INSERT INTO picks (so_id,batch_id,qty) VALUES (?,?,?)", (so_id, b["id"], take))
+        picked.append(f"{b['batch_no']}({take})")
         need -= take
-    con.execute("UPDATE sos SET status='picked' WHERE id=?", (so_id,))
+    con.execute("UPDATE sos SET status='picked', staged_at=?, audit_status='pending' WHERE id=?", (now_iso(), so_id))
+    audit(con, "picking", "Soạn hàng FEFO", so["so_no"], f"Đã giữ {so['qty']} thùng cho {so['customer']}: {', '.join(picked)}")
 
 
 def do_ship(con, so_id, plate):
@@ -67,14 +115,16 @@ def do_ship(con, so_id, plate):
     for pk in rows(con, "SELECT p.*, b.batch_no FROM picks p JOIN batches b ON b.id=p.batch_id WHERE so_id=?", (so_id,)):
         con.execute("UPDATE batches SET qty=qty-?, reserved=reserved-? WHERE id=?", (pk["qty"], pk["qty"], pk["batch_id"]))
         log(con, "OUT", so["product_id"], pk["batch_no"], -pk["qty"], f"Xuất cho {so['so_no']}")
-    con.execute("UPDATE sos SET status='shipping', plate=? WHERE id=?", (plate, so_id))
+    con.execute("UPDATE sos SET status='shipping', plate=?, scanned_qty=? WHERE id=?", (plate, so["qty"], so_id))
+    audit(con, "shipping", "Xuất kho lên xe", so["so_no"], f"Xuất {so['qty']} thùng lên xe {plate} giao {so['customer']}")
 
 
 # ---------- Tồn kho & chỉ số ----------
 def stock_by_sku(con):
-    """Tồn khả dụng theo sản phẩm (chỉ tính lô còn hạn)."""
-    return rows(con, """SELECT p.id, p.sku, p.name, p.safety, p.price,
-                               COALESCE(SUM(CASE WHEN b.exp>=? THEN b.qty-b.reserved END),0) AS av
+    """Tồn khả dụng theo sản phẩm (chỉ tính lô còn hạn và đạt chất lượng)."""
+    return rows(con, """SELECT p.id, p.sku, p.name, p.safety, p.price, p.storage, p.shelf_days,
+                               p.weight_kg, p.vol_m3, p.fragile, p.lead_days,
+                               COALESCE(SUM(CASE WHEN b.exp>=? AND b.q_status='ok' THEN b.qty-b.reserved END),0) AS av
                         FROM products p LEFT JOIN batches b ON b.product_id=p.id GROUP BY p.id""", (day(),))
 
 

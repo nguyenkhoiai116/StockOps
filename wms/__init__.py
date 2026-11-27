@@ -11,12 +11,12 @@ from dotenv import load_dotenv
 from flask import Flask
 
 from .db import ROOT
-from .features import (analytics, auth, chat, dashboard, inbound, inventory,
+from .features import (analytics, auth, chat, collab, dashboard, inbound, inventory,
                        layout, picking, products, shipping)
 from .seed import init_db
 
 # Mỗi phần tử là 1 nhóm chức năng (1 Blueprint)
-FEATURES = [dashboard, products, inbound, layout, inventory, picking, shipping, analytics, auth, chat]
+FEATURES = [dashboard, products, inbound, layout, inventory, picking, shipping, analytics, collab, auth, chat]
 
 
 KEY_FILE = ROOT / ".secret_key"   # khóa ký cookie, tự tạo lần chạy đầu, không đưa lên git
