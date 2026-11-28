@@ -1,0 +1,10 @@
+﻿username,name,role,active,created_at
+admin,Đặng Thùy Dương,admin,1,28/10/2026
+nhap01,Hồ Tấn Tài,inbound,1,28/10/2026
+nhap02,Đỗ Minh Tuấn,inbound,1,28/10/2026
+luu01,Vũ Trọng Minh,storage,1,28/10/2026
+luu02,Ngô Thu Trang,storage,1,28/10/2026
+soan01,Đặng Thùy Dương,picking,1,28/10/2026
+soan02,Hoàng Ngọc Mai,picking,1,28/10/2026
+xuat01,Nguyễn Dương Đại Nam,shipping,1,28/10/2026
+xuat02,Trịnh Kim Oanh,shipping,1,28/10/2026

@@ -3,9 +3,12 @@
   python database.py               xem tình trạng database
   python database.py backup        sao lưu wms.db vào thư mục backups/
   python database.py check         đối soát: sổ giao dịch có khớp tồn từng lô không, khóa ngoại có hỏng không
-  python database.py reset         sao lưu rồi làm lại dữ liệu mẫu từ đầu, hỏi mật khẩu demo
+  python database.py reset         sao lưu rồi dựng lại database từ các file CSV trong data/, hỏi mật khẩu demo
   python database.py reset -y      như trên nhưng không hỏi xác nhận
+  python database.py export        xuất toàn bộ database đang chạy ra file CSV trong exports/ (mở bằng Excel)
+  python database.py export data   xuất đè vào data/: trạng thái hiện tại thành bộ dữ liệu mẫu mới
 
+Dữ liệu mẫu nằm ở data/*.csv (mỗi file 1 bảng, xem data/README.md).
 Reset cần TẮT server trước (Ctrl+C), vì Windows không cho xóa file đang mở.
 """
 import os
@@ -14,13 +17,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from wms import csvdb
 from wms import db as dbm
 from wms.core import ledger_gaps
 from wms.migrate import DIR
 from wms.seed import init_db
 
 BAK = dbm.ROOT / "backups"   # nơi chứa bản sao lưu, không đưa lên git
-TABLES = ["products", "zones", "batches", "pos", "sos", "picks", "vehicles", "txs", "users"]
+OUT = dbm.ROOT / "exports"   # nơi chứa các lần xuất CSV, không đưa lên git
+TABLES = csvdb.TABLES
 
 
 def latest():
@@ -93,21 +98,48 @@ def backup():
     return out
 
 
-def reset(yes=False):
-    if not yes and input("Xóa toàn bộ dữ liệu hiện tại và nạp lại dữ liệu mẫu? (y/N) ").strip().lower() != "y":
-        print("Đã hủy")
-        return 1
-    backup()
+def drop():
+    """Xóa wms.db và 2 file phụ của WAL. False nếu file đang bị server giữ."""
     try:
-        for suf in ("", "-wal", "-shm"):   # WAL tạo thêm 2 file phụ cạnh wms.db
+        for suf in ("", "-wal", "-shm"):
             p = Path(dbm.DB + suf)
             if p.exists():
                 os.remove(p)
     except PermissionError:
+        return False
+    return True
+
+
+def reset(yes=False):
+    if not yes and input("Xóa toàn bộ dữ liệu hiện tại và nạp lại dữ liệu mẫu từ data/*.csv? (y/N) ").strip().lower() != "y":
+        print("Đã hủy")
+        return 1
+    backup()
+    if not drop():
         print("Không xóa được wms.db vì server đang chạy. Tắt server (Ctrl+C) rồi chạy lại lệnh này.")
         return 1
-    init_db()
-    print("Đã tạo lại database với dữ liệu mẫu")
+    try:
+        init_db()
+    except ValueError as e:   # file CSV sai: báo đúng file, dòng; xóa database rỗng để lần sau reset lại từ đầu
+        drop()
+        print("Lỗi trong file CSV:", e)
+        print("Sửa file rồi chạy lại: python database.py reset   (dữ liệu cũ vẫn còn trong backups/)")
+        return 1
+    print("Đã tạo lại database từ các file CSV trong data/")
+    return 0
+
+
+def export(to=None):
+    """Xuất database ra CSV. to: thư mục đích (mặc định exports/<ngày-giờ>/)."""
+    if not Path(dbm.DB).exists():
+        print("Chưa có database để xuất")
+        return 1
+    out = Path(to) if to else OUT / datetime.now().strftime("%Y%m%d-%H%M%S")
+    out = out if out.is_absolute() else dbm.ROOT / out
+    con = dbm.db()
+    csvdb.dump(con, out)
+    con.close()
+    print("Đã xuất CSV vào:", out)
     return 0
 
 
@@ -118,6 +150,8 @@ def main(args):
         return 0 if backup() else 1
     if args[0] == "check" and len(args) == 1:
         return check()
+    if args[0] == "export" and len(args) <= 2:
+        return export(*args[1:])
     if args[0] == "reset" and args[1:] in ([], ["-y"]):
         if reset(yes=args[1:] == ["-y"]):
             return 1

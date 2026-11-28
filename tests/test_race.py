@@ -93,8 +93,9 @@ class RaceTest(unittest.TestCase):
             wait()   # đã kiểm PO còn chờ nhận, sắp tạo lô
             return self.free(con, code)
         core.free_bin = slow
-        body = {"qty": 300, "dmg": 0, "batch_no": "L-T1", "exp": "2099-01-01"}
-        self.assertEqual(self.twice("/api/pos/1/receive", body), [200, 400])
+        po = self.q("SELECT id FROM pos WHERE status='pending' ORDER BY id LIMIT 1")[0]   # 1 PO đang chờ nhận trong dữ liệu mẫu
+        body = {"qty": 10, "dmg": 0, "batch_no": "L-T1", "exp": "2099-01-01"}
+        self.assertEqual(self.twice(f"/api/pos/{po}/receive", body), [200, 400])
         self.assertEqual(self.q("SELECT COUNT(*) FROM batches WHERE batch_no='L-T1'")[0], 1)
         self.assertEqual(self.q("SELECT COUNT(*) FROM txs WHERE batch_no='L-T1'")[0], 1)
 
@@ -110,9 +111,10 @@ class RaceTest(unittest.TestCase):
     def test_tao_don_lien_tiep_danh_so_tang_dan(self):
         c = self.app.test_client()
         c.post("/api/login", json={"user": "admin", "pass": PW})
+        n = self.q("SELECT COUNT(*) FROM sos")[0]
         for _ in range(2):
             self.assertEqual(c.post("/api/orders", json={"customer": "Thử", "product_id": 1, "qty": 5}).status_code, 200)
-        self.assertEqual(tuple(self.q("SELECT COUNT(DISTINCT so_no), COUNT(*) FROM sos")), (10, 10))
+        self.assertEqual(tuple(self.q("SELECT COUNT(DISTINCT so_no), COUNT(*) FROM sos")), (n + 2, n + 2))
 
 
 if __name__ == "__main__":

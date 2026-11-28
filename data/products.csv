@@ -1,0 +1,36 @@
+﻿sku,name,cat,unit,storage,price,safety,supplier,barcode,pack,dims,vol,tmin,tmax,shelf,fefo,qc,abc
+SKU-001,Sữa tươi thanh trùng Dalatmilk không đường 1L,Sữa & Chế phẩm sữa,thùng,chilled,420000,120,NCC Sữa Việt,8935217401012,12,32 x 24 x 21,0.016,2,6,30,10,1,A
+SKU-002,Sữa chua ăn có đường Vinamilk (Lốc 4x100g),Sữa & Chế phẩm sữa,thùng,chilled,265000,150,NCC Sữa Việt,8934673102025,12,36 x 26 x 14,0.013,2,8,45,14,1,A
+SKU-003,Sữa chua uống Probi hương Dâu (Lốc 5x65ml),Sữa & Chế phẩm sữa,thùng,chilled,235000,120,NCC Sữa Việt,8934673203038,10,34 x 22 x 12,0.009,2,8,45,14,1,A
+SKU-004,Xúc xích tiệt trùng Vissan gói 500g,Thực phẩm chế biến,thùng,chilled,680000,60,NCC Thực Phẩm Chế Biến Sài Gòn,8934564304041,20,40 x 30 x 22,0.026,0,5,60,15,1,B
+SKU-005,Chả lụa đặc biệt Cầu Tre cây 500g,Thực phẩm chế biến,thùng,chilled,960000,40,NCC Thực Phẩm Chế Biến Sài Gòn,8935049405054,16,38 x 28 x 20,0.021,0,4,40,12,1,B
+SKU-006,Phô mai Con Bò Cười 8 miếng hộp 112g,Sữa & Chế phẩm sữa,thùng,chilled,792000,50,NCC Sữa Việt,8936012506067,24,35 x 25 x 18,0.016,4,8,180,30,1,B
+SKU-007,Nước ép cam tươi Vfresh hộp 1L,Đồ uống lạnh,thùng,chilled,456000,60,NCC Giải Khát Sài Gòn,8935244607070,12,33 x 25 x 22,0.018,2,8,90,20,1,B
+SKU-008,Bơ thực vật Tường An hộp 200g,Gia vị & Bơ sữa,thùng,chilled,510000,30,NCC Thực Phẩm Á Châu,8936034708083,30,38 x 26 x 19,0.019,4,8,240,35,0,C
+SKU-009,Thịt ức gà phi-lê đông lạnh CP khay 1kg,Thực phẩm đông lạnh,thùng,frozen,975000,80,NCC Đông Lạnh Miền Nam,8935112809096,15,50 x 35 x 24,0.042,-22,-18,180,30,1,A
+SKU-010,Kem hộp Merino Vani 450ml,Thực phẩm đông lạnh,thùng,frozen,640000,50,NCC Đông Lạnh Miền Nam,8934868910102,16,44 x 32 x 26,0.037,-25,-18,365,45,1,B
+SKU-011,Chả giò rế tôm thịt Cầu Tre gói 500g,Thực phẩm đông lạnh,thùng,frozen,840000,50,NCC Đông Lạnh Miền Nam,8935049011118,20,46 x 34 x 25,0.039,-20,-18,365,45,1,B
+SKU-012,Cá viên chiên Basa Việt Sin gói 500g,Thực phẩm đông lạnh,thùng,frozen,720000,50,NCC Đông Lạnh Miền Nam,8935136112124,24,45 x 33 x 24,0.036,-20,-18,365,45,1,B
+SKU-013,Há cảo nhân tôm Bibigo gói 300g,Thực phẩm đông lạnh,thùng,frozen,660000,30,NCC Đông Lạnh Miền Nam,8936079213130,20,42 x 30 x 22,0.028,-20,-18,365,45,1,C
+SKU-014,Kem que Celano Socola Hạnh Nhân 80ml,Thực phẩm đông lạnh,thùng,frozen,480000,60,NCC Đông Lạnh Miền Nam,8934868314146,24,40 x 28 x 22,0.025,-25,-18,365,45,1,B
+SKU-015,Bánh mì tươi nhân kem Kinh Đô 60g,Bánh kẹo & Đồ ăn nhanh,thùng,dry,210000,100,NCC Bánh Kẹo Phương Nam,8934680415152,30,45 x 35 x 25,0.039,18,28,35,10,0,A
+SKU-016,Bánh bông lan Solite cuộn kem Dâu hộp 360g,Bánh kẹo & Đồ ăn nhanh,thùng,dry,492000,50,NCC Bánh Kẹo Phương Nam,8934680516168,12,44 x 32 x 26,0.037,18,28,180,30,0,B
+SKU-017,Socola KitKat 4 thanh gói 35g,Bánh kẹo & Đồ ăn nhanh,thùng,dry,576000,60,NCC Bánh Kẹo Phương Nam,8936036617174,48,36 x 26 x 20,0.019,16,25,270,40,0,B
+SKU-018,Sữa đặc có đường Ông Thọ Đỏ lon 380g,Sữa & Chế phẩm sữa,thùng,dry,1056000,120,NCC Sữa Việt,8934673718180,48,46 x 31 x 18,0.026,18,30,365,45,0,A
+SKU-019,Sữa tươi tiệt trùng Vinamilk 100% có đường (Lốc 4x180ml),Sữa & Chế phẩm sữa,thùng,dry,348000,200,NCC Sữa Việt,8934673819196,12,38 x 24 x 15,0.014,18,30,180,30,0,A
+SKU-020,Bánh quy bơ Danisa hộp thiếc 454g,Bánh kẹo & Đồ ăn nhanh,thùng,dry,1380000,30,NCC Bánh Kẹo Phương Nam,8935001920202,12,48 x 36 x 24,0.041,18,28,365,60,0,C
+SKU-021,Mì ăn liền Hảo Hảo Tôm Chua Cay (30 gói x 75g),Thực phẩm khô,thùng,dry,118000,250,NCC Thực Phẩm Á Châu,8934563021218,30,43 x 31 x 24,0.032,15,35,180,30,0,A
+SKU-022,Phở bò ăn liền Đệ Nhất gói 65g,Thực phẩm khô,thùng,dry,195000,80,NCC Thực Phẩm Á Châu,8935049122224,30,42 x 30 x 23,0.029,15,35,240,30,0,B
+SKU-023,Nước giải khát Trà Xanh Không Độ chai 455ml,Đồ uống đóng chai,thùng,dry,185000,200,NCC Giải Khát Sài Gòn,8934804223230,24,39 x 26 x 22,0.022,15,35,365,45,0,A
+SKU-024,Nước tăng lực Sting Dâu chai 330ml,Đồ uống đóng chai,thùng,dry,215000,200,NCC Giải Khát Sài Gòn,8934588324246,24,37 x 25 x 20,0.019,15,35,365,45,0,A
+SKU-025,Nước mắm Nam Ngư Đệ Nhị chai 900ml,Gia vị & Nước chấm,thùng,dry,264000,120,NCC Thực Phẩm Á Châu,8935049425252,12,34 x 26 x 28,0.025,15,35,540,60,0,A
+SKU-026,Dầu ăn thực vật Simply Đậu Nành chai 1L,Gia vị & Dầu ăn,thùng,dry,576000,120,NCC Thực Phẩm Á Châu,8934822526268,12,35 x 27 x 29,0.027,15,35,730,60,0,A
+SKU-027,Hạt nêm Chin-su Ngọt Thanh gói 400g,Gia vị & Nước chấm,thùng,dry,624000,60,NCC Thực Phẩm Á Châu,8935049627274,24,40 x 30 x 22,0.026,15,35,540,60,0,B
+SKU-028,Nước tinh khiết Aquafina chai 500ml,Đồ uống đóng chai,thùng,dry,98000,250,NCC Giải Khát Sài Gòn,8934588728280,24,38 x 26 x 22,0.022,15,35,730,60,0,A
+SKU-029,Cà phê hòa tan G7 3in1 hộp 18 gói,Cà phê & Trà,thùng,dry,1128000,60,NCC Thực Phẩm Á Châu,8936017829296,24,44 x 32 x 25,0.035,15,35,730,60,0,B
+SKU-030,Dầu gội Clear Bạc Hà Mát Lạnh chai 630g,Chăm sóc cá nhân,thùng,cosmetics,1440000,60,NCC Hóa Phẩm Xanh,8934868930302,12,38 x 28 x 26,0.028,15,35,1095,90,0,A
+SKU-031,Nước giặt OMO Matic Cửa Trước túi 3.6kg,Chăm sóc gia đình,thùng,cosmetics,690000,80,NCC Hóa Phẩm Xanh,8934868031318,4,36 x 28 x 32,0.032,15,35,1095,90,0,A
+SKU-032,Nước rửa chén Sunlight Chanh 100 can 3.6kg,Chăm sóc gia đình,thùng,cosmetics,380000,50,NCC Hóa Phẩm Xanh,8934868132324,4,36 x 28 x 31,0.031,15,35,1095,90,0,B
+SKU-033,Sữa tắm Lifebuoy Bảo Vệ Vượt Trội chai 800g,Chăm sóc cá nhân,thùng,cosmetics,1260000,40,NCC Hóa Phẩm Xanh,8934868233330,12,40 x 30 x 27,0.032,15,35,1095,90,0,B
+SKU-034,Kem đánh răng P/S Trà Xanh tuýp 230g,Chăm sóc cá nhân,thùng,cosmetics,972000,40,NCC Hóa Phẩm Xanh,8934868334346,36,42 x 28 x 20,0.024,15,35,1095,90,0,B
+SKU-035,Nước xả vải Comfort Đậm Đặc Một Lần Xả túi 3.2L,Chăm sóc gia đình,thùng,cosmetics,640000,30,NCC Hóa Phẩm Xanh,8934868435352,4,35 x 27 x 31,0.029,15,35,1095,90,0,C

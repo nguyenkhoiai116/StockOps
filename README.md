@@ -91,6 +91,22 @@ Lưu ý:
 - Cập nhật code: tắt server → `python database.py backup` → `git pull` → bấm `server.bat` (tự cài thư viện mới, tự chạy migration).
 - Máy chủ Linux: `gunicorn -w 1 --threads 16 -b 0.0.0.0:5000 app:app`, chạy bằng systemd, `ufw` chỉ cho dải LAN.
 
+### Truy cập từ nơi khác qua Cloudflare Tunnel
+
+Người ở xa mở `https://kho.tenmien.vn` trên trình duyệt bất kỳ. Không mở port trên router: `cloudflared` trên máy chủ tự kết nối ra Cloudflare, Cloudflare lo HTTPS. Máy trong LAN vẫn vào `http://<IP>:5000` như cũ.
+
+1. **Tên miền trên Cloudflare:** mua tên miền, thêm vào Cloudflare (gói Free), đổi nameserver ở nơi mua theo hướng dẫn của Cloudflare, chờ trạng thái *Active*.
+2. **Cài cloudflared** trên máy chủ:
+   ```powershell
+   winget install --id Cloudflare.cloudflared
+   ```
+3. **Tạo tunnel:** dashboard Cloudflare → *Zero Trust* → *Networks* → *Tunnels* → *Create a tunnel* → *Cloudflared*, đặt tên `stockops`. Chép lệnh `cloudflared.exe service install <token>` mà Cloudflare đưa, chạy trong PowerShell quyền Admin: tunnel chạy như dịch vụ Windows, tự bật cùng máy. Token này là bí mật, đừng gửi cho ai.
+4. **Public hostname** của tunnel: subdomain `kho`, chọn tên miền, *Service* = `HTTP` → `localhost:5000`. Phải là `localhost`, **không** dùng IP LAN: app chỉ tin IP thật trong header của Cloudflare khi request đến từ chính máy chủ.
+5. **Bắt buộc HTTPS:** *SSL/TLS* → *Edge Certificates* → bật **Always Use HTTPS**. Qua tunnel, cookie đăng nhập chỉ đi bằng HTTPS, vào bằng `http://` sẽ không đăng nhập được.
+6. **`.env`:** đặt `APP_URL=https://kho.tenmien.vn`, rồi tắt và bật lại `server.bat`. Thiếu bước này thì đăng nhập qua tên miền báo *"Yêu cầu đến từ trang khác"*.
+7. **Nên làm thêm: Cloudflare Access.** *Zero Trust* → *Access* → *Applications* → *Self-hosted*, tên miền `kho.tenmien.vn`, policy *Allow* với danh sách email nhân viên. Người lạ không thấy được cả trang đăng nhập; nhân viên nhận mã qua email (miễn phí tới 50 người). Đây là lớp chặn thứ hai, phòng khi mật khẩu bị lộ.
+
+Kiểm tra: dùng 4G điện thoại (tắt Wi-Fi) mở `https://kho.tenmien.vn`, đăng nhập, làm thử 1 thao tác ghi (vd điều chỉnh tồn).
 
 ---
 
@@ -151,8 +167,13 @@ File `wms.db` nằm trong thư mục dự án (không đưa lên GitHub). Chạy
 ```bash
 python database.py                 # xem tình trạng: số bảng, số dòng, phiên bản migration
 python database.py backup          # sao lưu vào backups/ (server đang chạy vẫn được)
-python database.py reset           # sao lưu rồi làm lại dữ liệu mẫu (TẮT server trước)
+python database.py reset           # sao lưu rồi dựng lại database từ data/*.csv (TẮT server trước)
+python database.py export          # xuất database đang chạy ra CSV trong exports/ để mở bằng Excel
+python database.py export data     # lấy trạng thái hiện tại làm bộ dữ liệu mẫu mới (ghi đè data/)
+python database.py check           # đối soát sổ giao dịch với tồn từng lô
 ```
+
+**Dữ liệu mẫu nằm trong các file CSV ở thư mục `data/`**, mỗi file 1 bảng: 35 SKU FMCG, 4 khu kho, 6 xe, 9 tài khoản, 14 ngày lô hàng, PO, đơn bán và sổ giao dịch. Muốn đổi dữ liệu: mở file bằng Excel, sửa, lưu kiểu **CSV UTF-8**, rồi `python database.py reset`. Ý nghĩa từng cột và các lỗi hay gặp với Excel: [data/README.md](data/README.md).
 
 Cấu trúc bảng được tạo bằng các file **migration** trong `wms/migrations/` (`001_base.sql`, `002_users.sql`, ...). Server tự chạy các file mới khi khởi động. Muốn đổi cấu trúc bảng: **thêm file số tiếp theo**, không sửa file cũ, không sửa bảng trong `seed.py`.
 
@@ -180,7 +201,8 @@ StockOps/
 ├── chay.bat            Chạy nhanh trên Windows (bấm đúp)
 ├── server.py           Chạy thật cho nhiều máy trong LAN (waitress)
 ├── server.bat          Bấm đúp để chạy server.py
-├── database.py         Xem / sao lưu / làm lại database
+├── database.py         Xem / sao lưu / dựng lại database từ CSV / xuất ra CSV
+├── data/               Dữ liệu mẫu: mỗi bảng 1 file CSV (mở bằng Excel), xem data/README.md
 ├── users.py            Xem tài khoản, đặt mật khẩu
 ├── .env.example        Mẫu cấu hình -> copy thành .env
 ├── requirements.txt    Thư viện Python (flask, gunicorn, requests, python-dotenv)
@@ -192,7 +214,8 @@ StockOps/
 │   ├── migrations/     Cấu trúc bảng theo từng bước 001, 002, ...
 │   ├── roles.py        Vai trò và quyền (PERMS)
 │   ├── users.py        Mật khẩu (băm, không lưu chữ thật)
-│   ├── seed.py         Dữ liệu mẫu
+│   ├── seed.py         Tạo bảng, nạp dữ liệu mẫu từ data/ khi database còn trống
+│   ├── csvdb.py        Đọc / ghi database bằng file CSV
 │   ├── ai/             Kết nối LLM (llm.py) và lời nhắc cho Kvis (prompts.py)
 │   └── features/       MỖI CHỨC NĂNG 1 FILE: dashboard, products, inbound, layout,
 │                       inventory, picking, shipping, analytics, auth, chat
@@ -224,7 +247,7 @@ StockOps/
 | API của 1 chức năng | `wms/features/<tên>.py` |
 | Luật nghiệp vụ tồn kho (FEFO, không âm, sức chứa...) | `wms/core.py` |
 | Quyền của từng vai trò | `wms/roles.py` (rồi chạy `python -m wms.roles` để in lại bảng cho `docs/roles.md`) |
-| Dữ liệu mẫu | `wms/seed.py` (rồi `python database.py reset`) |
+| Dữ liệu mẫu | các file CSV trong `data/` (rồi `python database.py reset`) |
 | Icon | thay file trong `static/icons/` |
 
 ### Thêm 1 chức năng mới

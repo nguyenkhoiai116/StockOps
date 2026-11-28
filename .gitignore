@@ -10,3 +10,10 @@ static/uploads/*
 # Bí mật: API key, cấu hình riêng từng máy
 .env
 .secret_key
+
+exports/
+
+# Log của server.py khi chạy nền (Task Scheduler)
+logs/
+# Đánh dấu thư mục chạy thật (E:\StockOps-live), capnhat.ps1 kiểm file này
+.live

@@ -1,11 +1,12 @@
 """Chạy: python -m unittest tests.test_racks   (số ô/kệ theo từng khu, dùng database tạm)"""
+import csv
 import os
 import shutil
 import sqlite3
 import tempfile
 import unittest
 
-from wms import db as dbm, seed
+from wms import csvdb, db as dbm, seed
 from wms.core import free_bin, zone_bins
 from wms.migrate import DIR, migrate
 
@@ -26,9 +27,9 @@ class RacksTest(unittest.TestCase):
     def test_db_moi_co_so_o_theo_khu(self):
         con = self.new()
         zs = con.execute("SELECT * FROM zones").fetchall()
-        self.assertEqual({z["code"]: zone_bins(z) for z in zs},
-                         {"DRY": 96, "COS": 60, "CHL": 24, "FRZ": 24})
-        self.assertEqual(con.execute("SELECT cap FROM zones WHERE code='DRY'").fetchone()[0], 20000)
+        with open(csvdb.DATA / "zones.csv", encoding="utf-8-sig") as f:   # số dãy, ô, tầng, sức chứa lấy từ data/zones.csv
+            want = {r["code"]: (int(r["racks"]) * int(r["bays"]) * int(r["levels"]), int(r["cap"])) for r in csv.DictReader(f)}
+        self.assertEqual({z["code"]: (zone_bins(z), z["cap"]) for z in zs}, want)
         con.close()
 
     def test_db_cu_duoc_nang_cap(self):
@@ -70,9 +71,11 @@ class RacksTest(unittest.TestCase):
                             (f"T{zone}{n}", "2099-01-01", zone, n))
 
     def test_free_bin_qua_12(self):
+        # lấp mọi ô trống từ 1 tới 12 (giới hạn BINS = 12 cũ) -> ô cấp tiếp phải > 12
         con = self.new()
-        self._fill(con, "DRY", range(6, 13))
-        self.assertEqual(free_bin(con, "DRY"), 13)
+        used = {r[0] for r in con.execute("SELECT bin FROM batches WHERE zone='DRY' AND qty>0")}
+        self._fill(con, "DRY", [i for i in range(1, 13) if i not in used])
+        self.assertEqual(free_bin(con, "DRY"), next(i for i in range(13, 97) if i not in used))
         con.close()
 
     def test_free_bin_het_o(self):

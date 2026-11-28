@@ -126,7 +126,7 @@ class FefoTest(Base):
 class ShipTest(Base):
     def picked(self, storage="dry", zone="DRY"):
         pid = self.product(storage)
-        self.batch(pid, "XA", 60, 50, zone=zone, bin=20)
+        self.batch(pid, "XA", 60, 50, zone=zone, bin=core.free_bin(self.con, zone))
         sid = self.order(pid, 30)
         self.go(core.do_pick, sid)
         return pid, sid
@@ -283,18 +283,19 @@ class ReorderTest(Base):
 
 class CreatePoTest(Base):
     def test_tao_po_danh_so_tiep(self):
-        pid = self.product()
+        pid, n = self.product(), self.one("SELECT COUNT(*) FROM pos")[0]
         with self.con:
             dbm.lock(self.con)
             no = core.create_po(self.con, pid, 40, dbm.day(3))
-        self.assertEqual(no, "PO-004")   # dữ liệu mẫu có PO-001..003
-        self.assertEqual(self.one("SELECT product_id, qty, eta, status FROM pos WHERE po_no='PO-004'"),
+        self.assertEqual(no, f"PO-{n + 1:03d}")   # nối tiếp các PO có sẵn trong dữ liệu mẫu
+        self.assertEqual(self.one("SELECT product_id, qty, eta, status FROM pos WHERE po_no=?", (no,)),
                          (pid, 40, dbm.day(3), "pending"))
 
     def test_sku_khong_ton_tai(self):
+        n = self.one("SELECT COUNT(*) FROM pos")
         with self.assertRaises(ValueError):
             self.go(core.create_po, 99999, 40, dbm.day(3))
-        self.assertEqual(self.one("SELECT COUNT(*) FROM pos"), (3,))
+        self.assertEqual(self.one("SELECT COUNT(*) FROM pos"), n)
 
     def test_so_luong_phai_duong(self):
         pid = self.product()
@@ -308,10 +309,10 @@ class CreatePoTest(Base):
         self.assertEqual(self.one("SELECT qty, eta FROM pos WHERE product_id=?", (pid,)), (40, dbm.day(1)))
 
     def test_api_body_sai_bao_loi_400(self):
-        c = self.admin()
+        c, n = self.admin(), self.one("SELECT COUNT(*) FROM pos")
         for body in ([1, 2], {"qty": 40}, {"product_id": 99999, "qty": 40}, {"product_id": "x", "qty": 40}):
             self.assertEqual(c.post("/api/pos", json=body).status_code, 400, body)
-        self.assertEqual(self.one("SELECT COUNT(*) FROM pos"), (3,))
+        self.assertEqual(self.one("SELECT COUNT(*) FROM pos"), n)
 
 
 if __name__ == "__main__":
@@ -445,15 +446,17 @@ class LedgerTest(Base):
         self.assertEqual(self.one("SELECT COUNT(*) FROM txs WHERE batch_id IS NULL"), (0,))
 
     def test_du_lieu_mau_giu_dung_ton_cuoi(self):
-        got = dict(self.con.execute("SELECT batch_no, qty FROM batches WHERE batch_no LIKE 'L24%'").fetchall())
-        self.assertEqual(got, {"L2401": 400, "L2402": 500, "L2403": 600, "L2404": 60, "L2405": 120, "L2406": 120,
-                               "L2407": 150, "L2408": 40, "L2409": 100, "L2410": 45, "L2411": 120, "L2412": 200,
-                               "L2413": 120})
-        self.assertEqual(self.one("SELECT reserved FROM batches WHERE batch_no='L2407'"), (40,))   # SO-004 đã soạn
+        # tồn từng lô nạp đúng như data/batches.csv (sổ khớp sẵn nên không phải ghi dòng cân sổ nào)
+        self.assertEqual(self.one("SELECT COUNT(*) FROM txs WHERE note LIKE 'Cân sổ%'"), (0,))
+        # hàng đang giữ của mỗi lô = tổng picks còn hiệu lực của các đơn đã soạn (bất biến của core.release)
+        bad = self.con.execute("""SELECT b.batch_no FROM batches b WHERE b.reserved != COALESCE((SELECT SUM(k.qty)
+                                  FROM picks k JOIN sos s ON s.id=k.so_id WHERE k.batch_id=b.id AND k.released=0
+                                  AND s.status='picked'), 0)""").fetchall()
+        self.assertEqual(bad, [])
 
     def test_lich_su_xuat_co_ngay_qua_khu(self):
         n = self.one("SELECT COUNT(*) FROM txs WHERE kind='OUT' AND substr(ts,1,10) < ?", (dbm.day(),))[0]
-        self.assertEqual(n, 3)   # 3 đơn đã giao SO-006, SO-007, SO-008
+        self.assertGreater(n, 0)   # có đơn đã giao trong các ngày trước -> biểu đồ nhập/xuất có số
 
     def test_thao_tac_qua_api_van_khop_va_ghi_nguoi_lam(self):
         c = self.admin()

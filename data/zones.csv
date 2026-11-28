@@ -1,0 +1,5 @@
+﻿code,name,storage,cap,tmin,tmax,temp,hum,racks,bays,levels
+DRY,Kho khô,dry,7000,15,30,27.5,60,4,6,4
+CHL,Kho mát 2-8°C,chilled,2400,2,8,9.1,75,2,4,3
+FRZ,Kho đông -18°C,frozen,1200,-25,-18,-18.6,55,2,4,3
+COS,Kho mỹ phẩm,cosmetics,1200,15,28,24,50,3,5,4

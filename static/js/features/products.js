@@ -6,15 +6,21 @@ let ps = []; // giữ tạm danh sách để các nút dùng lại
 // Vẽ danh mục sản phẩm kèm ô tìm kiếm, bộ lọc loại kho và nút thêm / xóa
 async function render() {
   ps = await api("/products");
-  const body = ps.map((p) => `<tr data-q="${esc((p.sku + " " + p.name + " " + p.cat + " " + p.storage).toLowerCase())}">
-    <td><b>${esc(p.sku)}</b></td><td>${esc(p.name)}<small>${esc(p.supplier)}</small></td><td>${esc(p.cat)}</td>
-    <td><span class="tag info">${STORE[p.storage]}</span></td><td class="r">${num(p.price)}</td><td class="r">${num(p.safety)}</td>
+  // Thuộc tính FMCG (mã vạch, nhiệt độ, quy cách, hạn dùng, ABC, QC) có thể trống với SKU thêm tay trên web
+  const body = ps.map((p) => `<tr data-q="${esc((p.sku + " " + (p.barcode || "") + " " + p.name + " " + p.cat + " " + p.storage).toLowerCase())}">
+    <td><b>${esc(p.sku)}</b>${p.barcode ? `<small>${esc(p.barcode)}</small>` : ""}</td>
+    <td>${esc(p.name)}<small>${esc(p.supplier)}</small></td><td>${esc(p.cat)}</td>
+    <td><span class="tag info">${STORE[p.storage]}</span>${p.tmin != null && p.tmax != null ? `<small>${p.tmin}…${p.tmax}°C</small>` : ""}</td>
+    <td class="r">${p.pack ? num(p.pack) + " ĐV" : ""}${p.dims ? `<small>${esc(p.dims)} cm</small>` : ""}</td>
+    <td class="r">${p.shelf ? num(p.shelf) + " ngày" : ""}${p.fefo != null ? `<small>báo trước ${p.fefo} ngày</small>` : ""}</td>
+    <td>${p.abc ? `<span class="tag">${esc(p.abc)}</span>` : ""}${p.qc ? ` <span class="tag warn">QC</span>` : ""}</td>
+    <td class="r">${num(p.price)}</td><td class="r">${num(p.safety)}</td>
     <td class="r">${num(p.stock)}</td><td class="r">${can("sku.edit") ? `<button class="btn sm ghost" onclick="skuDel(${p.id})">Xóa</button>` : ""}</td></tr>`).join("");
   return `<div class="head"><div><h1>Danh mục SKU</h1><p class="sub">${ps.length} sản phẩm</p></div>
-    <div class="tools"><input placeholder="Tìm mã, tên" oninput="skuFind()" id="q">
+    <div class="tools"><input placeholder="Tìm mã, mã vạch, tên" oninput="skuFind()" id="q">
       <select id="st" onchange="skuFind()"><option value="">Mọi loại kho</option>${Object.entries(STORE).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
       ${can("sku.edit") ? `<button class="btn" onclick="skuAdd()">Thêm SKU</button>` : ""}</div></div>
-    <div class="card">${table(["SKU", "Tên", "Nhóm", "Loại kho", "Giá vốn*", "Tồn an toàn*", "Tồn*", ""], body)}</div>`;
+    <div class="card">${table(["SKU", "Tên", "Nhóm", "Loại kho", "Quy cách*", "Hạn dùng*", "ABC", "Giá vốn*", "Tồn an toàn*", "Tồn*", ""], body)}</div>`;
 }
 
 // Lọc ngay trên trình duyệt: ẩn dòng không khớp từ khóa / loại kho

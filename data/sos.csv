@@ -1,0 +1,120 @@
+﻿id,so_no,customer,sku,qty,due,status,plate,on_time
+1,SO-001,Tạp hóa Minh Tâm,SKU-026,79,2026-11-14,delivered,51C-123.45,1
+2,SO-002,Cửa hàng tiện lợi Sao Mai,SKU-023,114,2026-11-15,delivered,51C-357.91,1
+3,SO-003,Siêu thị Phú Thịnh,SKU-001,82,2026-11-14,delivered,51D-135.79,1
+4,SO-004,Cửa hàng Bình Minh,SKU-034,18,2026-11-15,delivered,51C-123.45,1
+5,SO-005,Cửa hàng Bình Minh,SKU-007,18,2026-11-15,delivered,51D-135.79,1
+6,SO-006,Tạp hóa Minh Tâm,SKU-003,52,2026-11-14,delivered,51D-468.02,1
+7,SO-007,Siêu thị An Phú,SKU-014,18,2026-11-15,delivered,51D-468.02,1
+8,SO-008,Tạp hóa Cô Ba,SKU-019,52,2026-11-14,delivered,51C-123.45,1
+9,SO-009,Siêu thị An Phú,SKU-001,37,2026-11-14,delivered,51D-135.79,1
+10,SO-010,Siêu thị An Phú,SKU-009,36,2026-11-15,delivered,51D-678.90,1
+11,SO-011,Siêu thị Phú Thịnh,SKU-001,32,2026-11-14,delivered,51D-135.79,1
+12,SO-012,Cửa hàng tiện lợi Sao Mai,SKU-029,33,2026-11-14,delivered,51C-357.91,1
+13,SO-013,Siêu thị An Phú,SKU-014,26,2026-11-16,delivered,51D-468.02,1
+14,SO-014,Siêu thị Phú Thịnh,SKU-022,29,2026-11-16,delivered,51C-123.45,1
+15,SO-015,Cửa hàng tiện lợi Sao Mai,SKU-031,44,2026-11-16,delivered,51C-246.80,1
+16,SO-016,Tạp hóa Minh Tâm,SKU-029,23,2026-11-15,delivered,51C-123.45,1
+17,SO-017,Cửa hàng tiện lợi Sao Mai,SKU-006,14,2026-11-16,delivered,51D-468.02,1
+18,SO-018,Nhà hàng Biển Xanh,SKU-016,29,2026-11-15,delivered,51C-246.80,1
+19,SO-019,Cửa hàng Bình Minh,SKU-024,64,2026-11-16,delivered,51C-123.45,1
+20,SO-020,Cửa hàng Bình Minh,SKU-028,145,2026-11-16,delivered,51C-246.80,1
+21,SO-021,Siêu thị Phú Thịnh,SKU-032,16,2026-11-16,delivered,51C-357.91,1
+22,SO-022,Tạp hóa Cô Ba,SKU-002,97,2026-11-17,delivered,51D-135.79,1
+23,SO-023,Siêu thị Phú Thịnh,SKU-011,29,2026-11-15,delivered,51D-678.90,1
+24,SO-024,Siêu thị An Phú,SKU-020,9,2026-11-16,delivered,51C-246.80,1
+25,SO-025,Siêu thị An Phú,SKU-032,21,2026-11-17,delivered,51C-357.91,1
+26,SO-026,Siêu thị Phú Thịnh,SKU-023,95,2026-11-16,delivered,51C-357.91,1
+27,SO-027,Tạp hóa Minh Tâm,SKU-031,23,2026-11-15,delivered,51C-123.45,1
+28,SO-028,Tạp hóa Cô Ba,SKU-012,27,2026-11-16,delivered,51D-678.90,1
+29,SO-029,Siêu thị Phú Thịnh,SKU-023,61,2026-11-18,delivered,51C-357.91,1
+30,SO-030,Nhà hàng Biển Xanh,SKU-022,41,2026-11-17,delivered,51C-246.80,1
+31,SO-031,Siêu thị An Phú,SKU-015,44,2026-11-17,delivered,51C-357.91,1
+32,SO-032,Tạp hóa Minh Tâm,SKU-028,160,2026-11-17,delivered,51C-123.45,1
+33,SO-033,Tạp hóa Cô Ba,SKU-026,70,2026-11-17,delivered,51C-246.80,1
+34,SO-034,Nhà hàng Biển Xanh,SKU-009,34,2026-11-18,delivered,51D-678.90,1
+35,SO-035,Bếp ăn Công ty Tân Tiến,SKU-022,54,2026-11-18,delivered,51C-246.80,1
+36,SO-036,Cửa hàng Bình Minh,SKU-021,161,2026-11-19,delivered,51C-357.91,0
+37,SO-037,Siêu thị Phú Thịnh,SKU-024,133,2026-11-17,delivered,51C-357.91,1
+38,SO-038,Nhà hàng Biển Xanh,SKU-029,32,2026-11-18,delivered,51C-123.45,1
+39,SO-039,Nhà hàng Biển Xanh,SKU-027,33,2026-11-17,delivered,51C-246.80,1
+40,SO-040,Siêu thị An Phú,SKU-004,15,2026-11-18,delivered,51D-468.02,1
+41,SO-041,Bếp ăn Công ty Tân Tiến,SKU-026,30,2026-11-19,delivered,51C-123.45,1
+42,SO-042,Cửa hàng Bình Minh,SKU-033,27,2026-11-17,delivered,51C-123.45,1
+43,SO-043,Tạp hóa Cô Ba,SKU-025,52,2026-11-17,delivered,51C-246.80,1
+44,SO-044,Cửa hàng Bình Minh,SKU-010,32,2026-11-17,delivered,51D-468.02,1
+45,SO-045,Bếp ăn Công ty Tân Tiến,SKU-003,62,2026-11-19,delivered,51D-678.90,1
+46,SO-046,Bếp ăn Công ty Tân Tiến,SKU-025,45,2026-11-19,delivered,51C-246.80,1
+47,SO-047,Nhà hàng Biển Xanh,SKU-025,79,2026-11-19,delivered,51C-357.91,1
+48,SO-048,Siêu thị Phú Thịnh,SKU-027,23,2026-11-19,delivered,51C-123.45,1
+49,SO-049,Cửa hàng Bình Minh,SKU-023,66,2026-11-20,delivered,51C-246.80,1
+50,SO-050,Tạp hóa Minh Tâm,SKU-003,69,2026-11-19,delivered,51D-135.79,1
+51,SO-051,Siêu thị An Phú,SKU-026,77,2026-11-19,delivered,51C-357.91,0
+52,SO-052,Nhà hàng Biển Xanh,SKU-022,46,2026-11-21,delivered,51C-357.91,1
+53,SO-053,Cửa hàng Bình Minh,SKU-024,53,2026-11-20,delivered,51C-123.45,1
+54,SO-054,Đại lý Hòa Bình,SKU-015,67,2026-11-19,delivered,51C-246.80,1
+55,SO-055,Bếp ăn Công ty Tân Tiến,SKU-023,92,2026-11-20,delivered,51C-357.91,1
+56,SO-056,Cửa hàng Bình Minh,SKU-021,111,2026-11-19,delivered,51C-123.45,1
+57,SO-057,Tạp hóa Minh Tâm,SKU-018,67,2026-11-21,delivered,51C-123.45,1
+58,SO-058,Cửa hàng Bình Minh,SKU-005,12,2026-11-20,delivered,51D-135.79,1
+59,SO-059,Siêu thị Phú Thịnh,SKU-024,126,2026-11-21,delivered,51C-246.80,1
+60,SO-060,Tạp hóa Cô Ba,SKU-001,32,2026-11-21,delivered,51D-468.02,1
+61,SO-061,Tạp hóa Cô Ba,SKU-008,18,2026-11-20,delivered,51D-678.90,1
+62,SO-062,Cửa hàng tiện lợi Sao Mai,SKU-009,54,2026-11-20,delivered,51D-135.79,1
+63,SO-063,Siêu thị An Phú,SKU-011,19,2026-11-21,delivered,51D-468.02,1
+64,SO-064,Tạp hóa Cô Ba,SKU-022,48,2026-11-22,delivered,51C-357.91,1
+65,SO-065,Tạp hóa Minh Tâm,SKU-022,34,2026-11-21,delivered,51C-123.45,1
+66,SO-066,Tạp hóa Cô Ba,SKU-031,27,2026-11-21,delivered,51C-246.80,1
+67,SO-067,Tạp hóa Minh Tâm,SKU-031,52,2026-11-22,delivered,51C-123.45,1
+68,SO-068,Cửa hàng Bình Minh,SKU-020,17,2026-11-21,delivered,51C-246.80,1
+69,SO-069,Siêu thị An Phú,SKU-025,67,2026-11-22,delivered,51C-357.91,1
+70,SO-070,Siêu thị An Phú,SKU-003,65,2026-11-23,delivered,51D-678.90,1
+71,SO-071,Nhà hàng Biển Xanh,SKU-012,32,2026-11-22,delivered,51D-678.90,1
+72,SO-072,Bếp ăn Công ty Tân Tiến,SKU-012,26,2026-11-21,delivered,51D-135.79,1
+73,SO-073,Tạp hóa Minh Tâm,SKU-003,39,2026-11-23,delivered,51D-135.79,1
+74,SO-074,Siêu thị An Phú,SKU-021,71,2026-11-21,delivered,51C-357.91,1
+75,SO-075,Tạp hóa Cô Ba,SKU-010,20,2026-11-23,delivered,51D-468.02,1
+76,SO-076,Nhà hàng Biển Xanh,SKU-009,21,2026-11-22,delivered,51D-678.90,1
+77,SO-077,Cửa hàng Bình Minh,SKU-024,89,2026-11-23,delivered,51C-246.80,1
+78,SO-078,Đại lý Hòa Bình,SKU-029,19,2026-11-22,delivered,51C-357.91,1
+79,SO-079,Siêu thị An Phú,SKU-028,171,2026-11-23,delivered,51C-123.45,1
+80,SO-080,Tạp hóa Cô Ba,SKU-028,129,2026-11-23,delivered,51C-246.80,1
+81,SO-081,Siêu thị Phú Thịnh,SKU-019,56,2026-11-23,delivered,51C-357.91,1
+82,SO-082,Mỹ phẩm Hoa Mai,SKU-031,39,2026-11-23,delivered,51C-123.45,1
+83,SO-083,Cửa hàng Bình Minh,SKU-002,91,2026-11-23,delivered,51D-135.79,1
+84,SO-084,Tạp hóa Minh Tâm,SKU-007,30,2026-11-23,delivered,51D-468.02,1
+85,SO-085,Siêu thị Phú Thịnh,SKU-033,14,2026-11-23,delivered,51C-123.45,1
+86,SO-086,Siêu thị An Phú,SKU-026,74,2026-11-25,delivered,51C-123.45,1
+87,SO-087,Bếp ăn Công ty Tân Tiến,SKU-028,168,2026-11-24,delivered,51C-246.80,1
+88,SO-088,Cửa hàng Bình Minh,SKU-009,31,2026-11-25,delivered,51D-135.79,1
+89,SO-089,Tạp hóa Minh Tâm,SKU-027,36,2026-11-25,delivered,51C-357.91,1
+90,SO-090,Bếp ăn Công ty Tân Tiến,SKU-010,34,2026-11-24,delivered,51D-468.02,1
+91,SO-091,Siêu thị Phú Thịnh,SKU-017,15,2026-11-25,cancelled,,
+92,SO-092,Bếp ăn Công ty Tân Tiến,SKU-011,18,2026-11-25,delivered,51D-678.90,1
+93,SO-093,Tạp hóa Cô Ba,SKU-021,168,2026-11-26,delivered,51C-123.45,1
+94,SO-094,Đại lý Hòa Bình,SKU-016,31,2026-11-25,delivered,51C-246.80,1
+95,SO-095,Cửa hàng Bình Minh,SKU-015,35,2026-11-24,delivered,51C-357.91,1
+96,SO-096,Bếp ăn Công ty Tân Tiến,SKU-026,50,2026-11-26,delivered,51C-246.80,1
+97,SO-097,Cửa hàng tiện lợi Sao Mai,SKU-022,32,2026-11-26,delivered,51C-357.91,1
+98,SO-098,Cửa hàng tiện lợi Sao Mai,SKU-016,24,2026-11-26,delivered,51C-123.45,1
+99,SO-099,Cửa hàng tiện lợi Sao Mai,SKU-018,55,2026-11-25,delivered,51C-246.80,1
+100,SO-100,Bếp ăn Công ty Tân Tiến,SKU-028,88,2026-11-26,delivered,51C-357.91,1
+101,SO-101,Siêu thị Phú Thịnh,SKU-028,88,2026-11-27,delivered,51C-357.91,1
+102,SO-102,Mỹ phẩm Hoa Mai,SKU-030,39,2026-11-25,delivered,51C-123.45,1
+103,SO-103,Bếp ăn Công ty Tân Tiến,SKU-011,23,2026-11-27,delivered,51D-678.90,1
+104,SO-104,Tạp hóa Cô Ba,SKU-017,30,2026-11-27,delivered,51C-246.80,1
+105,SO-105,Bếp ăn Công ty Tân Tiến,SKU-023,134,2026-11-26,delivered,51C-246.80,1
+106,SO-106,Cửa hàng tiện lợi Sao Mai,SKU-021,98,2026-11-26,delivered,51C-357.91,1
+107,SO-107,Siêu thị Phú Thịnh,SKU-002,65,2026-11-27,delivered,51D-678.90,1
+108,SO-108,Cửa hàng tiện lợi Sao Mai,SKU-027,29,2026-11-27,delivered,51C-246.80,1
+109,SO-109,Siêu thị Phú Thịnh,SKU-003,44,2026-11-27,delivered,51D-468.02,1
+110,SO-110,Tạp hóa Minh Tâm,SKU-012,21,2026-11-27,delivered,51D-678.90,1
+111,SO-111,Tạp hóa Cô Ba,SKU-033,20,2026-11-27,delivered,51C-246.80,1
+112,SO-112,Nhà hàng Biển Xanh,SKU-021,80,2026-11-27,shipping,51C-123.45,
+113,SO-113,Siêu thị An Phú,SKU-001,40,2026-11-27,shipping,51D-135.79,
+114,SO-114,Nhà hàng Biển Xanh,SKU-024,60,2026-11-28,picked,,
+115,SO-115,Siêu thị An Phú,SKU-010,20,2026-11-28,picked,,
+116,SO-116,Siêu thị An Phú,SKU-033,15,2026-11-28,picked,,
+117,SO-117,Cửa hàng Bình Minh,SKU-028,90,2026-11-28,new,,
+118,SO-118,Cửa hàng tiện lợi Sao Mai,SKU-014,25,2026-11-29,new,,
+119,SO-119,Nhà hàng Biển Xanh,SKU-013,400,2026-11-28,new,,

@@ -13,7 +13,7 @@ Phần lớn tài liệu này là **kế hoạch**. Bảng dưới là những g
 | Giao diện | 8 trang JS thuần trong `static/`, kho 3D chữ U | `web/` (Next.js, tùy chọn) |
 | Kvis | Trả lời từ ảnh chụp số liệu (`prompts.snapshot`) | Tool đọc, RAG, đề xuất hành động (nhánh A) |
 | Dữ liệu ngoài | — | Cổng ingest, `sims/`, `ml/` (nhánh B) |
-| Database | SQLite WAL, migration 001–008, `lock()` chống ghi đè | `009_ai.sql`, bảng time-series |
+| Database | SQLite WAL, migration 001–009, `lock()` chống ghi đè; dữ liệu mẫu ở `data/*.csv` (ADR-016) | `010_ai.sql`, bảng time-series |
 | Test | 106 test, gồm luật lõi (`tests/test_core.py`) | Bộ chấm điểm agent, RAG |
 
 Thứ tự đã chốt: **nhánh A** (Kvis agent, Phase 5–7, spec `docs/superpowers/specs/2026-11-26-kvis-agent-design.md`) làm trước, **nhánh B** (dữ liệu mô phỏng → ML, Phase 1–4) làm sau. Phần 0 của spec đã xong; bước tiếp theo là A1.
@@ -51,7 +51,7 @@ Cập nhật 2026-11-26. Chi tiết và bằng chứng: `docs/review-2026-11-26.
 
   ✅ Flask monolith + blueprints     — đúng tầm, dễ thêm feature
   ✅ SQLite WAL + timeout 5s         — đã bật trong db()
-  ✅ Migration 001–008 (user_version) — đã có, có test
+  ✅ Migration 001–009 (user_version) — đã có, có test
   ✅ HTML/CSS/JS ES modules + 3D lười — không build step
   ✅ guard() mặc định chặn + PERMS   — test kiểm mọi route đã khai quyền
   ✅ CHECK ở DB + transaction        — tồn âm bị chặn ở cả DB lẫn code
@@ -160,9 +160,9 @@ StockOps/
 ├── .env.example                 # LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, INGEST_KEY, FLASK_DEBUG
 ├── requirements.txt             # pin version
 ├── wms/
-│   ├── __init__.py  db.py  core.py  seed.py
+│   ├── __init__.py  db.py  core.py  seed.py  csvdb.py   # csvdb: nạp / xuất database bằng CSV (ADR-016)
 │   ├── migrate.py               # chạy migrations theo PRAGMA user_version
-│   ├── migrations/              # đã có 001_base … 008_login_fails; 009_ai.sql (nhánh A); time-series (nhánh B)
+│   ├── migrations/              # đã có 001_base … 009_fmcg; 010_ai.sql (nhánh A); time-series (nhánh B)
 │   ├── features/                # (cũ) + ingest.py, ml.py, chat.py
 │   └── ai/
 │       ├── llm.py               # 1 client, cấu hình bằng .env
@@ -375,11 +375,23 @@ StockOps/
 - **Tradeoff:** các lệnh ghi phải xếp hàng (mỗi lệnh vài ms, `timeout=5` giây); quên gọi `lock()` ở khối ghi mới thì lỗi quay lại (đã ghi vào Agent Rules).
 - **Revisit when:** chuyển PostgreSQL (dùng `SELECT ... FOR UPDATE` hoặc mức cô lập của Postgres).
 
+### ADR-016: Dữ liệu mẫu nằm trong file CSV, database vẫn là SQLite
+- **Choice:** mỗi bảng 1 file `data/<bảng>.csv`. `python database.py reset` dựng lại `wms.db` từ các file này (`wms/csvdb.load`), `python database.py export` xuất ngược ra CSV (`csvdb.dump`, không xuất `pw_hash`). App vẫn chỉ đọc ghi SQLite. CSV dùng `sku` thay cho `product_id`, chỉ `batches`/`sos` giữ `id`; mọi ngày được dời theo `data/ngay_goc.txt` để demo luôn mới; sổ `txs` lệch tồn thì tự ghi 1 dòng cân sổ. Danh mục 35 SKU FMCG lấy từ `StockOps_DanhMuc_FMCG-v2.xlsx`, migration `009_fmcg.sql` thêm cột mã vạch, quy cách, kích thước, nhiệt độ, hạn dùng, ngưỡng FEFO, QC, ABC.
+- **Why:** chủ dự án chưa quen SQL, cần xem và sửa dữ liệu bằng Excel. Đọc ghi thẳng CSV khi chạy sẽ mất transaction, `lock()`, `CHECK` và khóa ngoại (ADR-015), nên CSV chỉ là nguồn nạp và bản xem.
+- **Tradeoff:** sửa CSV xong phải `reset` (mất dữ liệu đang chạy, có sao lưu); lịch sử mẫu sinh 1 lần bằng script ngoài repo, muốn bộ mới thì thao tác trên web rồi `export data`. "Kho thường" và "Kho khô" trong Excel gộp vào khu DRY (khác nhau ở `tmin`/`tmax` của sản phẩm). Ngưỡng cận date vẫn là `NEAR = 30` chung, chưa dùng cột `fefo` của từng SKU.
+- **Revisit when:** cần sửa dữ liệu khi server đang chạy mà không reset (làm trang nhập CSV qua web), hoặc dùng `fefo`/`tmin`/`tmax` trong cảnh báo.
+
 ### ADR-017: Chạy cho 2–10 máy trong LAN bằng waitress, vẫn SQLite
 - **Choice:** `server.py` (waitress, 1 tiến trình, 16 luồng, `0.0.0.0:5000`) trên 1 máy Windows luôn bật; `server.bat` + Task Scheduler để tự chạy; sao lưu hằng ngày bằng `database.py backup`. Linux dùng `gunicorn -w 1 --threads 16`. Không Docker, không Nginx, không HTTPS, không mở ra Internet.
 - **Why:** server thử nghiệm của Flask không dành cho nhiều người; gunicorn không chạy trên Windows. 1 tiến trình nhiều luồng đủ cho vài request/giây; 16 luồng vì mỗi câu hỏi Kvis giữ 1 luồng tới 60 giây. Ngưỡng PostgreSQL "> 5 người" cũ là số đoán, đổi sang ngưỡng đo được (lỗi lock).
 - **Tradeoff:** HTTP thường trong LAN (mật khẩu không mã hóa trên Wi-Fi); máy chủ hỏng thì dừng cả kho tới khi khôi phục từ bản sao lưu. Migration có `GUARD` để nhiều worker khởi động cùng lúc không chạy trùng file.
 - **Revisit when:** cần truy cập từ ngoài kho (khi đó: HTTPS + `COOKIE_SECURE=1`, xem "Thêm Sau"), hoặc lỗi `database is locked` > 1 lần/ngày.
+
+### ADR-018: Truy cập từ xa qua Cloudflare Tunnel
+- **Choice:** `cloudflared` chạy dịch vụ Windows trên máy chủ, trỏ `localhost:5000`; người ở xa vào `https://<tên miền>`. App tin `CF-Connecting-IP` chỉ khi request đến từ 127.0.0.1 (`auth.client_ip()`), bật cookie `Secure` cho request qua tunnel (`auth.Session`), nhận `Origin` khớp `APP_URL`. Khuyến nghị thêm Cloudflare Access (email OTP) phía trước.
+- **Why:** không mở port router, có HTTPS miễn phí, người dùng không cài gì; khoảng 5 người cùng lúc vẫn nằm trong sức của waitress + SQLite (ADR-017). Không có `client_ip()` thì qua tunnel mọi người đều là 127.0.0.1, 20 lần gõ sai là khóa cả hệ thống.
+- **Tradeoff:** trang đăng nhập lộ ra Internet (nếu không bật Access); phụ thuộc Cloudflare; ai đăng nhập được trên chính máy chủ thì giả được IP trong bộ đếm sai mật khẩu. Kvis tốn tiền API theo số người dùng.
+- **Revisit when:** > 30 người dùng hoặc cần chạy nhiều máy chủ (khi đó VPS + PostgreSQL, xem "Thêm Sau"); hoặc bỏ Cloudflare (khi đó cần reverse proxy có HTTPS, đổi cách lấy IP thật).
 
 ## Lộ trình triển khai (các bước)
 
@@ -390,11 +402,11 @@ Thứ tự đã đổi (chủ dự án chốt 2026-11-26): Phase 0 xong → **nh
 | Phase | Nội dung | Tiêu chí xong |
 |---|---|---|
 | **0. Dọn nền** (1–2 buổi) · ✅ xong | Bật WAL + `busy_timeout` trong `db()`; viết `migrate.py`, chuyển SCHEMA hiện tại thành `001_base.sql` (xử lý bảng `icons`); `.env` + python-dotenv; `FLASK_DEBUG` từ env; pin `requirements.txt`; test cho `do_pick` (đủ hàng, chia lô, thiếu hàng) nằm trong `tests/test_core.py` | test xanh; xóa wms.db chạy lại vẫn ra đúng dữ liệu mẫu |
-| **1. Ingest + bảng time-series** (1 buổi) · nhánh B | Migration số tiếp theo (vd `010_timeseries.sql`): `stores`, `sensor_readings`, `store_traffic`, `store_sales` (index theo `(key, ts)`); `features/ingest.py` nhận đơn lẻ + theo lô; ingest sensor cập nhật luôn `zones.temp/hum` để `get_alerts()` cũ chạy không cần sửa | `curl` POST 1 reading 10°C vào CHL → Dashboard hiện cảnh báo |
+| **1. Ingest + bảng time-series** (1 buổi) · nhánh B | Migration số tiếp theo sau `010_ai.sql` của nhánh A (vd `011_timeseries.sql`): `stores`, `sensor_readings`, `store_traffic`, `store_sales` (index theo `(key, ts)`); `features/ingest.py` nhận đơn lẻ + theo lô; ingest sensor cập nhật luôn `zones.temp/hum` để `get_alerts()` cũ chạy không cần sửa | `curl` POST 1 reading 10°C vào CHL → Dashboard hiện cảnh báo |
 | **2. temp_sim** (2 buổi) · nhánh B | `sims/common/clock.py`, `client.py`; app 5101 với thanh trượt + nút sự cố; trang "Giám sát nhiệt độ" trong StockOps vẽ biểu đồ 1 giờ gần nhất (polling) | Bấm "hỏng máy nén" → trong ≤ 10s StockOps hiện cảnh báo |
 | **3. store_sim** (2–3 buổi) · nhánh B | App 5102: cửa hàng, lượt khách, bán lẻ, tự đặt SO; `scripts/backfill.py --days 180` | Có ≥ 180 ngày `store_sales`; chạy live x60 trong 10 phút sinh ra SO mới trong trang Soạn hàng |
 | **4. ML** (3–4 buổi) · nhánh B | `ml/features.py`; baseline; train demand + traffic; `evaluate.py` in MAE/WAPE so với baseline; `features/ml.py`; biểu đồ dự báo vs thực tế; gợi ý đặt hàng dùng dự báo (ROP = nhu cầu dự báo trong lead time + safety stock) thay cho `safety*2 - av` | Model thắng baseline trên 28 ngày cuối; API trả dự báo 7 ngày |
-| **5. Agent + tool** (2–3 buổi) · nhánh A, làm trước | `009_ai.sql` (`chat_logs`, `agent_actions`, `doc_chunks`); `ai/llm.py`, `tools.py` (chỉ đọc), `agent.py`; `/api/chat`; nối `chat.js`; bộ 20 câu hỏi mẫu kèm đáp án | ≥ 16/20 câu trả lời đúng số liệu, mỗi câu ≤ 5 bước tool |
+| **5. Agent + tool** (2–3 buổi) · nhánh A, làm trước | `010_ai.sql` (`chat_logs`, `agent_actions`, `doc_chunks`); `ai/llm.py`, `tools.py` (chỉ đọc), `agent.py`; `/api/chat`; nối `chat.js`; bộ 20 câu hỏi mẫu kèm đáp án | ≥ 16/20 câu trả lời đúng số liệu, mỗi câu ≤ 5 bước tool |
 | **6. RAG** (2 buổi) · nhánh A | Viết 8–15 tài liệu trong `knowledge/`; `build_index.py`; tool `search_docs`; hiển thị nguồn trích dẫn | Bộ 15 câu hỏi tài liệu: đúng tài liệu nằm trong top-5 ≥ 80% |
 | **7. Đề xuất hành động** (1–2 buổi) · nhánh A | `propose_po`, `propose_adjust`; thẻ xác nhận trong chat; trang lịch sử đề xuất | Hỏi "nên nhập gì?" → thẻ PO đúng SKU/số lượng; bấm xác nhận → PO xuất hiện ở trang Nhập hàng |
 
@@ -424,6 +436,7 @@ Thứ tự đã đổi (chủ dự án chốt 2026-11-26): Phase 0 xong → **nh
 - FOLLOW the per-feature layout: backend blueprint in `wms/features/<name>.py` registered in `wms/__init__.py`; frontend page either in `static/js/features/<name>.js` registered in `static/js/app.js` (vanilla), or in `web/app/<name>/page.tsx` (Next.js).
 - PUT all inventory business rules in `wms/core.py`. Every write MUST run inside a transaction via `core.run()` or `with con:`; a `with con:` block that writes MUST call `lock(con)` (`wms/db.py`) as its first statement, before any check it reads.
 - NEVER change schema in `seed.py`. ADD a new numbered file in `wms/migrations/` instead.
+- Sample data lives ONLY in `data/*.csv` (one file per table, loaded by `wms/csvdb.py`). DO NOT hard-code sample rows in Python. CSV is for seeding and viewing; the app reads and writes SQLite only.
 - Roles and permissions MUST be defined only in `wms/roles.py`; every new `/api/*` route MUST be listed in `PERMS` there (`python -m unittest discover tests` checks this). NEVER commit passwords or password hashes for sample users.
 - Login and permission checks live in `guard()` (`wms/features/auth.py`), deny by default. Frontend `can()` only hides buttons; NEVER rely on it for security. Use `can()` for every new action button.
 - Simulators in `sims/` MUST NOT import from `wms/` or open `wms.db`. They talk to StockOps only over HTTP (`/api/ingest/*`, `/api/orders`).
@@ -452,7 +465,9 @@ Thứ tự đã đổi (chủ dự án chốt 2026-11-26): Phase 0 xong → **nh
 | 2026-11-26 | Review kiến trúc và luồng dữ liệu (planfirst brownfield) | Cập nhật Alignment Score (~85%); thêm `docs/review-2026-11-26.md`: race transaction, nghiệp vụ ngoài core.py, lỗi 500, mã hóa test |
 | 2026-11-26 | Sửa race khi ghi đồng thời | ADR-015; `db.lock()`, migration 004 (UNIQUE số đơn), `run()` bắt IntegrityError, chống bấm đúp ở `core.js`, `tests/test_race.py`; Alignment ~90% |
 | 2026-11-26 | Chốt thứ tự nhánh A trước, làm Phần 0 của spec Kvis | Mục Hiện trạng; `tests/test_core.py` (luật lõi, viết trước khi chuyển); `core.zone_status`, `reorder`/`reorder_qty` (trừ PO đang chờ nhận), `create_po`, `do_adjust`; route PO và điều chỉnh báo 400 khi body sai; sửa chỗ lệch (migration 004/005, auth, thứ tự phase); xóa `HUONG_DAN.txt`; tên StockOps ở mọi nơi |
+| 2026-11-27 | Dữ liệu mẫu bằng CSV, danh mục FMCG 35 SKU | ADR-016; `data/*.csv` + `data/README.md`, `wms/csvdb.py`, `seed.py` chỉ còn nạp CSV, `database.py export`, migration `009_fmcg.sql`, trang SKU hiện thuộc tính mới, `tests/test_csvdb.py`; test cũ bỏ phụ thuộc số liệu mẫu cụ thể |
 | 2026-11-28 | Deploy cho 2–10 máy trong LAN | ADR-017; `server.py` + `server.bat` (waitress), gunicorn chỉ cài trên Linux; migration không chạy trùng khi nhiều worker (`tests/test_migrate.py`); ngưỡng PostgreSQL đổi sang lỗi lock đo được |
+| 2026-11-28 | Truy cập từ xa qua Cloudflare Tunnel | ADR-018; `auth.client_ip()`, `auth.Session` (cookie Secure qua tunnel), Origin nhận `APP_URL`; README hướng dẫn tunnel + Cloudflare Access; `tests/test_tunnel.py` |
 
 ---
 To update, run `/planfirst` again.

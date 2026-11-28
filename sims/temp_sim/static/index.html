@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StockOps AIoT — Bộ mô phỏng cảm biến nhiệt độ kho</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>StockOps AIoT · Temp Sensor Simulator</h1>
+      <p class="sub">Mô phỏng 4 cảm biến SHT30 (DRY, CHL, FRZ, COS) + Phân tích biên + Cổng HTTP Ingest API</p>
+    </div>
+    <div class="clock-bar">
+      <span class="sim-time" id="sim-time">--:--:--</span>
+      <button class="btn" id="btn-pause">Tạm dừng</button>
+      <div class="speed-group" id="speed-group">
+        <button class="btn speed" data-speed="1">x1</button>
+        <button class="btn speed active" data-speed="60">x60</button>
+        <button class="btn speed" data-speed="600">x600</button>
+        <button class="btn speed" data-speed="3600">x3600</button>
+      </div>
+      <button class="btn warn" id="btn-power">Mất điện toàn kho</button>
+      <button class="btn ghost" id="btn-reset">Reset</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel env-panel">
+      <div class="env-item">
+        <label>Nhiệt độ môi trường nền: <strong id="lbl-amb-t">31.0°C</strong> <span class="muted">(theo giờ ngày/đêm: <span id="lbl-diu-t">--</span>°C)</span></label>
+        <input type="range" id="rng-amb-t" min="15" max="44" step="0.5" value="31">
+      </div>
+      <div class="env-item">
+        <label>Độ ẩm môi trường nền: <strong id="lbl-amb-h">72%</strong> <span class="muted">(thực tế: <span id="lbl-diu-h">--</span>%)</span></label>
+        <input type="range" id="rng-amb-h" min="35" max="95" step="1" value="72">
+      </div>
+      <div class="env-actions">
+        <a class="btn ghost" href="/api/sim/export.csv" download>Xuất CSV lịch sử</a>
+      </div>
+    </section>
+
+    <section class="zones-grid" id="zones-grid"></section>
+
+    <section class="panel api-panel">
+      <div class="api-head">
+        <h2>Kết nối StockOps Ingest API (sẵn sàng tích hợp)</h2>
+        <span class="badge" id="api-badge">Đang tắt đẩy tự động</span>
+      </div>
+      <div class="api-form">
+        <label>
+          URL StockOps
+          <input type="text" id="inp-url" value="http://localhost:5000" placeholder="http://localhost:5000">
+        </label>
+        <label>
+          X-Ingest-Key
+          <input type="password" id="inp-key" placeholder="Tùy chọn (khớp INGEST_KEY trong .env)">
+        </label>
+        <label class="chk">
+          <input type="checkbox" id="chk-push"> Tự động gửi mỗi giây tới <code>/api/ingest/sensor</code>
+        </label>
+        <div class="api-btns">
+          <button class="btn primary" id="btn-save-api">Lưu cấu hình</button>
+          <button class="btn" id="btn-push-now">Gửi ngay 1 nhịp</button>
+        </div>
+      </div>
+      <div class="api-stats" id="api-stats"></div>
+      <details open>
+        <summary>Payload JSON chuẩn gửi tới <code>POST /api/ingest/sensor</code></summary>
+        <pre id="payload-preview">{}</pre>
+      </details>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
