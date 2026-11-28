@@ -44,6 +44,7 @@ def create_app():
     # static_url_path="": file trong static được phục vụ ngay ở gốc (vd /css/base.css)
     app = Flask(__name__, static_folder="../static", static_url_path="")
     app.secret_key = secret_key()
+    app.session_interface = auth.Session()   # cookie phiên bật Secure khi vào qua Cloudflare Tunnel (https)
     app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
                       SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE") == "1",   # đặt 1 khi chạy qua HTTPS
                       PERMANENT_SESSION_LIFETIME=timedelta(hours=8))

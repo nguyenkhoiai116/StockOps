@@ -5,10 +5,12 @@ API chưa khai báo trong wms/roles.py -> 403 (mặc định là chặn).
 Phiên đăng nhập nằm trong cookie có chữ ký của Flask (trình duyệt không sửa được, JS không đọc được).
 """
 import hashlib
+import os
 import time
 from urllib.parse import urlsplit
 
 from flask import Blueprint, g, jsonify, request, session
+from flask.sessions import SecureCookieSessionInterface
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..db import bad, body, db, lock
@@ -20,6 +22,33 @@ bp = Blueprint("auth", __name__)
 WAIT = 300                # khóa tạm 5 phút khi sai nhiều lần
 MAX_USER, MAX_IP = 5, 20  # số lần sai tối đa: của 1 tài khoản từ 1 máy / của 1 máy (bảng login_fails)
 DUMMY = generate_password_hash("x")   # để tài khoản không tồn tại cũng tốn thời gian kiểm tra như thật
+LOCAL = {"127.0.0.1", "::1"}
+
+
+def via_tunnel():
+    """Request đi qua Cloudflare Tunnel: cloudflared chạy trên chính máy chủ nên đến từ 127.0.0.1,
+    Cloudflare gắn IP thật vào CF-Connecting-IP. Máy trong LAN gửi header này thì bị bỏ qua (không đến từ 127.0.0.1)."""
+    return request.remote_addr in LOCAL and "CF-Connecting-IP" in request.headers
+
+
+def client_ip():
+    """IP thật của người dùng. Qua tunnel mà lấy remote_addr thì ai cũng là 127.0.0.1:
+    vài người gõ sai mật khẩu là khóa cả hệ thống."""
+    return request.headers["CF-Connecting-IP"][:64] if via_tunnel() else (request.remote_addr or "?")
+
+
+def hosts():
+    """Các địa chỉ trang web của chính app, dùng để chặn CSRF: host của request + tên miền công khai trong APP_URL."""
+    url = os.getenv("APP_URL", "")
+    return {request.host} | ({urlsplit(url).netloc} if url else set())
+
+
+class Session(SecureCookieSessionInterface):
+    """Cookie phiên chỉ gửi qua HTTPS khi người dùng vào bằng tên miền Cloudflare (luôn là https),
+    còn máy trong LAN vào bằng http://IP:5000 vẫn đăng nhập được. COOKIE_SECURE=1 thì luôn bật."""
+
+    def get_cookie_secure(self, app):
+        return super().get_cookie_secure(app) or via_tunnel()
 
 
 def stamp(u):
@@ -46,7 +75,7 @@ def guard():
         return None
     # Chặn trang web khác gửi lệnh ghi bằng phiên của người dùng (CSRF)
     origin = request.headers.get("Origin")
-    if request.method not in ("GET", "HEAD") and origin and urlsplit(origin).netloc != request.host:
+    if request.method not in ("GET", "HEAD") and origin and urlsplit(origin).netloc not in hosts():
         return bad("Yêu cầu đến từ trang khác, đã bị chặn", 403)
     g.user = current()
     key = f"{'GET' if request.method == 'HEAD' else request.method} {request.url_rule.rule}"
@@ -85,7 +114,7 @@ def api_login():
     """Đăng nhập. Báo lỗi chung chung để không lộ tài khoản nào có thật."""
     d = body()
     name, pw = str(d.get("user") or "").strip().lower()[:64], str(d.get("pass") or "")[:256]
-    now, ip = time.time(), request.remote_addr or "?"
+    now, ip = time.time(), client_ip()
     con = db()
     try:
         with con:   # dọn các lần sai đã quá thời gian khóa
