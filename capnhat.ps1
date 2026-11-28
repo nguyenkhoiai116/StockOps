@@ -37,12 +37,17 @@ function Test-Up {
 
 function Restart-Server {
     # /End dừng đúng tiến trình python do task chạy; dừng bằng tay nên task không tự chạy lại
-    schtasks /End /TN $task 2>$null | Out-Null
+    schtasks /End /TN $task 2>&1 | Out-Null
+    if ($LASTEXITCODE) { Say "Không dừng được task '$task' (thiếu quyền?)." Red; return $false }
     for ($i = 0; $i -lt 20; $i++) {
         if (-not (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)) { break }
         Start-Sleep 1
     }
-    schtasks /Run /TN $task | Out-Null
+    if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+        Say "Đã dừng task nhưng cổng $port vẫn bị chiếm (có server khác đang chạy?)." Red; return $false
+    }
+    schtasks /Run /TN $task 2>&1 | Out-Null
+    if ($LASTEXITCODE) { Say "Không chạy được task '$task'." Red; return $false }
     return (Test-Up)
 }
 

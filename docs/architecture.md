@@ -393,6 +393,12 @@ StockOps/
 - **Tradeoff:** trang đăng nhập lộ ra Internet (nếu không bật Access); phụ thuộc Cloudflare; ai đăng nhập được trên chính máy chủ thì giả được IP trong bộ đếm sai mật khẩu. Kvis tốn tiền API theo số người dùng.
 - **Revisit when:** > 30 người dùng hoặc cần chạy nhiều máy chủ (khi đó VPS + PostgreSQL, xem "Thêm Sau"); hoặc bỏ Cloudflare (khi đó cần reverse proxy có HTTPS, đổi cách lấy IP thật).
 
+### ADR-019: Bản chạy thật tách khỏi thư mục dev, cập nhật bằng `capnhat.ps1`
+- **Choice:** bản chạy thật là 1 git clone riêng ở `E:\StockOps-live` (nhánh `main`, `.venv`, `.env`, `wms.db` riêng, file đánh dấu `.live`), task *StockOps server* chạy `server.py --log` bằng tài khoản người dùng (S4U, tự bật khi khởi động máy). Thư mục dev chạy cổng 5001. Cập nhật: commit vào `main` → `capnhat.bat` (fetch, `--ff-only`, pip, test, backup, `schtasks /End` + `/Run`, kiểm tra `/api/me`, lỗi thì `reset --hard` về commit cũ).
+- **Why:** chạy thẳng từ thư mục dev thì sửa dở, đổi nhánh hay chạy thử đều đổ lên người dùng thật và database thật. Task chạy bằng tài khoản người dùng (không phải SYSTEM) và được cấp quyền trên task, nên cập nhật không cần Admin.
+- **Tradeoff:** lùi code không lùi migration (phải khôi phục từ bản sao lưu); clone lấy code từ thư mục dev nên xóa thư mục dev thì `capnhat` hết chạy (đổi `origin` sang GitHub là xong).
+- **Revisit when:** có người thứ 2 cùng cập nhật bản chạy thật, hoặc chuyển sang VPS (khi đó cân nhắc Docker, xem "Thêm Sau").
+
 ## Lộ trình triển khai (các bước)
 
 Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
@@ -468,6 +474,7 @@ Thứ tự đã đổi (chủ dự án chốt 2026-11-26): Phase 0 xong → **nh
 | 2026-11-27 | Dữ liệu mẫu bằng CSV, danh mục FMCG 35 SKU | ADR-016; `data/*.csv` + `data/README.md`, `wms/csvdb.py`, `seed.py` chỉ còn nạp CSV, `database.py export`, migration `009_fmcg.sql`, trang SKU hiện thuộc tính mới, `tests/test_csvdb.py`; test cũ bỏ phụ thuộc số liệu mẫu cụ thể |
 | 2026-11-28 | Deploy cho 2–10 máy trong LAN | ADR-017; `server.py` + `server.bat` (waitress), gunicorn chỉ cài trên Linux; migration không chạy trùng khi nhiều worker (`tests/test_migrate.py`); ngưỡng PostgreSQL đổi sang lỗi lock đo được |
 | 2026-11-28 | Truy cập từ xa qua Cloudflare Tunnel | ADR-018; `auth.client_ip()`, `auth.Session` (cookie Secure qua tunnel), Origin nhận `APP_URL`; README hướng dẫn tunnel + Cloudflare Access; `tests/test_tunnel.py` |
+| 2026-11-28 | Tách bản chạy thật khỏi thư mục dev | ADR-019; `E:\StockOps-live`, `capnhat.ps1`/`.bat`, `server.py --log`, task chạy bằng tài khoản người dùng; dev chạy cổng 5001; Cloudflare Browser Cache TTL = Respect Existing Headers |
 
 ---
 To update, run `/planfirst` again.

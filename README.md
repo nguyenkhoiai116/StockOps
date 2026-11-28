@@ -106,7 +106,29 @@ Người ở xa mở `https://kho.tenmien.vn` trên trình duyệt bất kỳ. K
 6. **`.env`:** đặt `APP_URL=https://kho.tenmien.vn`, rồi tắt và bật lại `server.bat`. Thiếu bước này thì đăng nhập qua tên miền báo *"Yêu cầu đến từ trang khác"*.
 7. **Nên làm thêm: Cloudflare Access.** *Zero Trust* → *Access* → *Applications* → *Self-hosted*, tên miền `kho.tenmien.vn`, policy *Allow* với danh sách email nhân viên. Người lạ không thấy được cả trang đăng nhập; nhân viên nhận mã qua email (miễn phí tới 50 người). Đây là lớp chặn thứ hai, phòng khi mật khẩu bị lộ.
 
-Kiểm tra: dùng 4G điện thoại (tắt Wi-Fi) mở `https://kho.tenmien.vn`, đăng nhập, làm thử 1 thao tác ghi (vd điều chỉnh tồn).
+Kiểm tra: dùng 4G điện thoại (tắt Wi-Fi) mở `https://kho.tenmien.vn`, đăng nhập, làm thử 1 thao tác ghi (vd điều chỉnh tồn). Ở *Caching* → *Configuration* đặt **Browser Cache TTL = Respect Existing Headers**, nếu không Cloudflare giữ JS/CSS cũ 4 giờ sau mỗi lần cập nhật.
+
+### Bản chạy thật tách khỏi thư mục sửa code
+
+Hệ thống đang chạy thật (`https://stockopsute.dpdns.org`) là **bản riêng ở `E:\StockOps-live`**, không phải thư mục dự án này.
+
+| | Thư mục dev (`E:\RANDOM\StockOps`) | Bản chạy thật (`E:\StockOps-live`) |
+|---|---|---|
+| Dùng để | Sửa code, chạy thử | Cả kho dùng hằng ngày |
+| Cổng | `5001` (`PORT=5001` trong `.env`) | `5000`, Cloudflare Tunnel trỏ vào đây |
+| Database | `wms.db` riêng, sửa thoải mái | `wms.db` thật |
+| Ai chạy | Bạn (`chay.bat`) | Task Scheduler *StockOps server* (tự bật khi khởi động máy) |
+
+Sửa code ở thư mục dev **không** làm đổi web đang chạy. Muốn đưa lên:
+
+1. Sửa và thử ở thư mục dev, `python -m unittest discover tests` phải pass.
+2. Commit, rồi gộp vào nhánh `main`.
+3. Trong `E:\StockOps-live`, bấm đúp **`capnhat.bat`** (không cần Admin). Script lấy code `main` → cài thư viện → chạy test → sao lưu `wms.db` → khởi động lại server (gián đoạn vài giây) → kiểm tra. Server mới không lên thì tự lùi về code cũ.
+
+- Chỉ khởi động lại (vd sau khi sửa `E:\StockOps-live\.env`): `capnhat.bat -Restart`.
+- Log server: `E:\StockOps-live\logs\server.log`. Sao lưu tự động 23:00 mỗi tối: `E:\StockOps-live\backups\`.
+- **Không sửa code trực tiếp trong `E:\StockOps-live`**: `capnhat.bat` sẽ từ chối chạy.
+- Migration mới chạy lên database thật ngay khi khởi động lại; lùi code không lùi được database, khi đó khôi phục từ bản sao lưu mà `capnhat.bat` in ra.
 
 ---
 

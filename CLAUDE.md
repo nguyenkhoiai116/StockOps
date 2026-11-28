@@ -39,6 +39,7 @@ Full spec: `./docs/architecture.md` — read before adding any infrastructure.
 - Feature engineering MUST live in `ml/features.py` and be shared by training and prediction.
 - Every model MUST beat a seasonal-naive baseline on a time-based holdout (last 28 days) before it is served.
 - NEVER put API keys in frontend code or commit `.env`.
+- The live system runs from a separate clone, `E:\StockOps-live` (port 5000, real `wms.db`, ADR-019). NEVER edit files, run `database.py reset` or switch branches there; change code in the dev folder (port 5001), merge into `main`, then deploy with `capnhat.bat` in `E:\StockOps-live`.
 - PREFER polling (3–5 s) for live views over WebSocket/SSE.
 - Write code comments in Vietnamese; keep variable names short and consistent with existing code (`con`, `rows`, `day`, `bad`, `log`).
 <!-- planfirst:end -->
