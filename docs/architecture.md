@@ -261,7 +261,7 @@ StockOps/
 - **Chuyển hẳn mọi trang sang `web/`** — thêm khi ≥ 5 trên 9 màn hình đã nằm ở `web/`. Không phải bây giờ vì 9 màn hình JS thuần đang chạy tốt. Effort: trung bình.
 
 - **Server-Sent Events (SSE)** — thêm khi cần cập nhật < 2 giây hoặc > 10 tab dashboard mở cùng lúc. Không phải bây giờ vì polling đủ và dễ debug. Effort: thấp.
-- **PostgreSQL (+ pgvector)** — thêm khi `sensor_readings` > 5 triệu dòng, hoặc lỗi lock vẫn > 1 lần/ngày sau WAL, hoặc deploy cho > 5 người dùng đồng thời. Không phải bây giờ vì SQLite đang đủ và không cần cài server DB. Effort: trung bình (đã có migrations nên dễ hơn).
+- **PostgreSQL (+ pgvector)** — thêm khi `sensor_readings` > 5 triệu dòng, hoặc lỗi `database is locked` > 1 lần/ngày sau WAL, hoặc > 30 người dùng đồng thời, hoặc cần chạy nhiều máy chủ app. Không phải bây giờ vì SQLite đang đủ và không cần cài server DB: kho 2–10 người chỉ tạo vài request/giây, WAL + `lock()` xếp hàng lệnh ghi là đủ (ADR-017). Effort: trung bình (đã có migrations nên dễ hơn).
 - **MQTT (Mosquitto)** — thêm khi có ≥ 3 thiết bị ESP32 thật hoặc cần gửi lệnh ngược xuống thiết bị. Không phải bây giờ vì HTTP POST đủ cho 2 simulator. Effort: trung bình.
 - **APScheduler (train lại định kỳ / bản tin sáng)** — thêm khi bạn train lại bằng tay > 1 lần/tuần. Effort: thấp.
 - **sqlite-vec** — thêm khi số đoạn tài liệu > 20.000 hoặc tìm kiếm > 200ms. Effort: thấp.
@@ -375,6 +375,12 @@ StockOps/
 - **Tradeoff:** các lệnh ghi phải xếp hàng (mỗi lệnh vài ms, `timeout=5` giây); quên gọi `lock()` ở khối ghi mới thì lỗi quay lại (đã ghi vào Agent Rules).
 - **Revisit when:** chuyển PostgreSQL (dùng `SELECT ... FOR UPDATE` hoặc mức cô lập của Postgres).
 
+### ADR-017: Chạy cho 2–10 máy trong LAN bằng waitress, vẫn SQLite
+- **Choice:** `server.py` (waitress, 1 tiến trình, 16 luồng, `0.0.0.0:5000`) trên 1 máy Windows luôn bật; `server.bat` + Task Scheduler để tự chạy; sao lưu hằng ngày bằng `database.py backup`. Linux dùng `gunicorn -w 1 --threads 16`. Không Docker, không Nginx, không HTTPS, không mở ra Internet.
+- **Why:** server thử nghiệm của Flask không dành cho nhiều người; gunicorn không chạy trên Windows. 1 tiến trình nhiều luồng đủ cho vài request/giây; 16 luồng vì mỗi câu hỏi Kvis giữ 1 luồng tới 60 giây. Ngưỡng PostgreSQL "> 5 người" cũ là số đoán, đổi sang ngưỡng đo được (lỗi lock).
+- **Tradeoff:** HTTP thường trong LAN (mật khẩu không mã hóa trên Wi-Fi); máy chủ hỏng thì dừng cả kho tới khi khôi phục từ bản sao lưu. Migration có `GUARD` để nhiều worker khởi động cùng lúc không chạy trùng file.
+- **Revisit when:** cần truy cập từ ngoài kho (khi đó: HTTPS + `COOKIE_SECURE=1`, xem "Thêm Sau"), hoặc lỗi `database is locked` > 1 lần/ngày.
+
 ## Lộ trình triển khai (các bước)
 
 Mỗi phase có **tiêu chí xong** — chưa đạt thì không sang phase sau.
@@ -446,6 +452,7 @@ Thứ tự đã đổi (chủ dự án chốt 2026-11-26): Phase 0 xong → **nh
 | 2026-11-26 | Review kiến trúc và luồng dữ liệu (planfirst brownfield) | Cập nhật Alignment Score (~85%); thêm `docs/review-2026-11-26.md`: race transaction, nghiệp vụ ngoài core.py, lỗi 500, mã hóa test |
 | 2026-11-26 | Sửa race khi ghi đồng thời | ADR-015; `db.lock()`, migration 004 (UNIQUE số đơn), `run()` bắt IntegrityError, chống bấm đúp ở `core.js`, `tests/test_race.py`; Alignment ~90% |
 | 2026-11-26 | Chốt thứ tự nhánh A trước, làm Phần 0 của spec Kvis | Mục Hiện trạng; `tests/test_core.py` (luật lõi, viết trước khi chuyển); `core.zone_status`, `reorder`/`reorder_qty` (trừ PO đang chờ nhận), `create_po`, `do_adjust`; route PO và điều chỉnh báo 400 khi body sai; sửa chỗ lệch (migration 004/005, auth, thứ tự phase); xóa `HUONG_DAN.txt`; tên StockOps ở mọi nơi |
+| 2026-11-28 | Deploy cho 2–10 máy trong LAN | ADR-017; `server.py` + `server.bat` (waitress), gunicorn chỉ cài trên Linux; migration không chạy trùng khi nhiều worker (`tests/test_migrate.py`); ngưỡng PostgreSQL đổi sang lỗi lock đo được |
 
 ---
 To update, run `/planfirst` again.

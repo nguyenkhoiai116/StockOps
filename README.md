@@ -68,6 +68,30 @@ python app.py                      # chạy server
   (lần đầu Windows hỏi tường lửa → cho phép mạng **Private**)
 - Tắt server: bấm **Ctrl+C** trong terminal.
 
+### Chạy thật cho 2–10 máy trong mạng LAN
+
+`chay.bat` / `python app.py` là server thử nghiệm của Flask, chỉ dùng khi phát triển. Khi cả kho dùng chung:
+
+1. Chọn 1 máy luôn bật làm máy chủ, tắt Sleep, đặt IP cố định (DHCP reservation trên router).
+2. Bấm đúp `chay.bat` 1 lần để cài đặt và đặt mật khẩu, rồi đặt mật khẩu riêng cho từng người: `python users.py passwd <tên>`.
+3. Bấm đúp **`server.bat`** (chạy `python server.py` bằng waitress). Màn hình in ra địa chỉ cho máy khác, vd `http://192.168.1.137:5000`.
+4. Mở tường lửa cho cổng 5000, chỉ mạng Private (PowerShell chạy quyền Admin):
+   ```powershell
+   New-NetFirewallRule -DisplayName "StockOps 5000" -Direction Inbound -Protocol TCP -LocalPort 5000 -Action Allow -Profile Private
+   ```
+5. Tự chạy khi bật máy: Task Scheduler → *Create Task* → trigger *At startup*, action chạy `server.bat`, tick *Run whether user is logged on or not*.
+6. Sao lưu mỗi tối, và định kỳ chép thư mục `backups/` sang máy/USB khác:
+   ```powershell
+   schtasks /Create /TN "StockOps backup" /SC DAILY /ST 23:00 /TR "<thư mục dự án>\.venv\Scripts\python.exe <thư mục dự án>\database.py backup"
+   ```
+
+Lưu ý:
+- **Không** port-forward ra Internet: app chạy HTTP, mật khẩu đi trên mạng không mã hóa. Khách dùng chung Wi-Fi thì tách sang mạng khách.
+- **Không** mở `wms.db` qua thư mục chia sẻ mạng (SQLite WAL hỏng khi nhiều máy mở file qua mạng). Mọi máy vào qua web.
+- Cập nhật code: tắt server → `python database.py backup` → `git pull` → bấm `server.bat` (tự cài thư viện mới, tự chạy migration).
+- Máy chủ Linux: `gunicorn -w 1 --threads 16 -b 0.0.0.0:5000 app:app`, chạy bằng systemd, `ufw` chỉ cho dải LAN.
+
+
 ---
 
 ## 3. Đăng nhập
@@ -112,6 +136,8 @@ Muốn chạy model trên máy bằng **LM Studio**: xem phần mẫu trong `.en
 |---|---|---|
 | `PORT` | `5000` | Cổng chạy web. Cổng bị chiếm thì đổi sang `5001`... |
 | `FLASK_DEBUG` | `0` | `1` = tự nạp lại khi sửa code + trang lỗi chi tiết. Để `0` khi cho người khác vào qua Wi-Fi |
+| `THREADS` | `16` | Số luồng của `server.py`. Mỗi câu hỏi Kvis giữ 1 luồng tới 60 giây |
+| `HOST` | `0.0.0.0` | Địa chỉ `server.py` lắng nghe. `127.0.0.1` = chỉ máy này vào được |
 | `LLM_BASE_URL` | OpenRouter | Địa chỉ dịch vụ LLM (chuẩn OpenAI) |
 | `LLM_API_KEY` | trống | Key của dịch vụ LLM |
 | `LLM_MODEL` | `google/gemma-4-31b-it:free` | Tên model, phải hỗ trợ gọi tool |
@@ -152,6 +178,8 @@ Cấu trúc bảng được tạo bằng các file **migration** trong `wms/migr
 StockOps/
 ├── app.py              Khởi động server (chạy file này)
 ├── chay.bat            Chạy nhanh trên Windows (bấm đúp)
+├── server.py           Chạy thật cho nhiều máy trong LAN (waitress)
+├── server.bat          Bấm đúp để chạy server.py
 ├── database.py         Xem / sao lưu / làm lại database
 ├── users.py            Xem tài khoản, đặt mật khẩu
 ├── .env.example        Mẫu cấu hình -> copy thành .env
